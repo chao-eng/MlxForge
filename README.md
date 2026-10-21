@@ -16,14 +16,14 @@
 
 | 模型 | 任务 | 尺寸 | 权重 |
 | --- | --- | --- | --- |
-| [Hy-MT2](https://huggingface.co/collections/tencent/hy-mt2) | 多语种翻译 | 1.8B / 7B / 30B-A3B | 官方支持 4-bit 量化 |
+| [Hy-MT2](https://huggingface.co/collections/tencent/hy-mt2) | 多语种翻译 | 1.8B（4-bit） | 官方支持 4-bit 量化 |
 | [Ming-3.0-tts](https://huggingface.co/inclusionAI/Ming-3.0-tts-0.5B) | 语音合成 | 0.5B / tiny | transformers，需转 MLX |
 
-Hy-MT2 是腾讯混元 2026 年 5 月开源的翻译模型，覆盖 33 种语言，另有 5 种民汉语言和方言。1.8B 和 7B 是稠密模型，30B-A3B 是 MoE，每次推理激活 3B。官方提供了 4-bit、8-bit、FP16 和 1.25-bit 几档量化。
+Hy-MT2 是腾讯混元 2026 年 5 月开源的翻译模型，覆盖 33 种语言，另有 5 种民汉语言和方言。官方提供 4-bit、8-bit、FP16 和 1.25-bit 几档量化，本项目只取 1.8B 的 4-bit 版本。
 
 Ming-3.0-tts 来自蚂蚁百灵 2026 年 10 月的语音系列。除了常规的文本转语音，它支持用文字描述音色，也支持导演模式，可以写明情绪怎么走、哪个词要重读。台词里还能插 `[Laughter]`、叹息这类标签。
 
-在 Mac mini 上，Hy-MT2 的 1.8B、7B 和 Ming-3.0-tts 的两个尺寸都是现实的目标。30B-A3B 要看机器内存，跑过才知道。
+项目只覆盖端侧尺寸：Hy-MT2 的 1.8B，以及 Ming-3.0-tts 的 0.5B 和 tiny。更大的版本不在本期范围内。
 
 ## 为什么不用 Docker
 
@@ -64,7 +64,7 @@ GET  /health
 - macOS 14 或更新
 - Python 3.11 及以上
 - `uv`
-- 磁盘空间按模型算，30B-A3B 的权重和转换产物要留出几十 GB
+- 磁盘空间按模型算，Hy-MT2-1.8B-4bit 的权重约 1 GB，另需留出独立环境的依赖空间
 
 ## 本地运行
 
