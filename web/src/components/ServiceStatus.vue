@@ -5,24 +5,15 @@ import type { HealthState } from '../api/types'
 const props = defineProps<{
   state: HealthState | null
   reachable: boolean
+  labels: Record<HealthState, string>
 }>()
-
-// 文案映射与 PRD 9.5 保持一致，组件内不另造状态名
-const STATE_LABELS: Record<HealthState, string> = {
-  unloaded: '已就绪',
-  loading: '正在准备模型',
-  ready: '已就绪',
-  generating: '正在翻译',
-  unloading: '正在释放内存',
-  failed: '模型加载失败',
-}
 
 type TagTheme = 'default' | 'primary' | 'warning' | 'danger' | 'success'
 
 const label = computed<string>(() => {
   if (!props.reachable) return '服务未启动'
   if (props.state === null) return '正在检查'
-  return STATE_LABELS[props.state]
+  return props.labels[props.state]
 })
 
 const theme = computed<TagTheme>(() => {

@@ -1,92 +1,18 @@
-import type {
-  ChatRequest,
-  ChatStreamChunk,
-  ErrorResponse,
-  HealthResponse,
-  HealthState,
-} from './types'
+import {
+  ApiError,
+  isChatStreamChunk,
+  isErrorResponse,
+  isHealthResponse,
+  readJson,
+  toApiError,
+} from './http'
+import type { ChatRequest, HealthResponse } from './types'
 
 const CHAT_ENDPOINT = '/v1/chat/completions'
 const HEALTH_ENDPOINT = '/health'
 const MODEL_ID = 'Hy-MT2'
 
-const HEALTH_STATES: readonly HealthState[] = [
-  'unloaded',
-  'loading',
-  'ready',
-  'generating',
-  'unloading',
-  'failed',
-]
-
-export class ApiError extends Error {
-  readonly type: string
-
-  constructor(type: string, message: string) {
-    super(message)
-    this.name = 'ApiError'
-    this.type = type
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isErrorResponse(value: unknown): value is ErrorResponse {
-  if (!isRecord(value)) return false
-  const error = value.error
-  if (!isRecord(error)) return false
-  return typeof error.type === 'string' && typeof error.message === 'string'
-}
-
-function isChatStreamChunk(value: unknown): value is ChatStreamChunk {
-  if (!isRecord(value)) return false
-  const choices = value.choices
-  if (!Array.isArray(choices)) return false
-  return choices.every((choice: unknown) => {
-    if (!isRecord(choice)) return false
-    const delta = choice.delta
-    if (!isRecord(delta)) return false
-    return delta.content === undefined || typeof delta.content === 'string'
-  })
-}
-
-function isHealthState(value: unknown): value is HealthState {
-  return typeof value === 'string' && HEALTH_STATES.some((state) => state === value)
-}
-
-function isHealthResponse(value: unknown): value is HealthResponse {
-  if (!isRecord(value)) return false
-  return (
-    (value.status === 'ok' || value.status === 'degraded') &&
-    isHealthState(value.state) &&
-    typeof value.model_loaded === 'boolean' &&
-    typeof value.idle_seconds === 'number' &&
-    typeof value.idle_timeout_seconds === 'number' &&
-    (value.last_error === undefined || value.last_error === null || typeof value.last_error === 'string')
-  )
-}
-
-async function toApiError(response: Response): Promise<ApiError> {
-  try {
-    const body: unknown = await response.json()
-    if (isErrorResponse(body)) {
-      return new ApiError(body.error.type, body.error.message)
-    }
-  } catch {
-    // 错误响应不是 JSON 时按状态码兜底
-  }
-  return new ApiError('http_error', `服务返回了异常状态码 ${response.status}`)
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json()
-  } catch {
-    throw new ApiError('invalid_response', '服务返回的数据无法解析')
-  }
-}
+export { ApiError } from './http'
 
 function buildPrompt(text: string, target: string): string {
   // 官方中文指令格式：中文提示词配中文语言名，且只输出译文

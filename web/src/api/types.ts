@@ -65,6 +65,42 @@ export interface HealthResponse {
   idle_seconds: number
   idle_timeout_seconds: number
   last_error?: string | null
+  sample_rate?: number
+}
+
+export interface ModelInfo {
+  id: string
+  object: string
+  created?: number
+  owned_by?: string
+}
+
+export interface ModelListResponse {
+  object: string
+  data: ModelInfo[]
+}
+
+export type AudioFormat = 'wav' | 'pcm'
+
+/** 与 API 的请求字段一一对应，未使用的可选字段不发送（PRD 第 3 章）。 */
+export interface SpeechRequest {
+  model: string
+  input: string
+  voice: string
+  language: string
+  response_format: AudioFormat
+  reference_audio?: string
+  reference_text?: string
+  instructions?: string
+}
+
+export interface SpeechResult {
+  blob: Blob
+  format: AudioFormat
+  durationSeconds: number | null
+  elapsedMs: number
+  requestId: string
+  resolvedTask: string
 }
 
 export interface ErrorResponse {

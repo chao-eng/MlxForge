@@ -1,0 +1,51 @@
+﻿样本ID,语言,类别,文本,API语言,task,voice,instructions,seed,评分重点
+ZH-01,zh,短句,请把窗户关上。,zh,auto,auto,,42,短句清晰度与句末语气
+ZH-02,zh,短句,会议改到下午三点。,zh,auto,auto,,42,时间表达与自然停顿
+ZH-03,zh,短句,这杯茶有点苦。,zh,auto,auto,,42,短句自然度与情绪中性
+ZH-04,zh,短句,电梯已经到一楼了。,zh,auto,auto,,42,数字与陈述句调
+ZH-05,zh,短句,别忘了带钥匙。,zh,auto,auto,,42,提醒语气
+ZH-06,zh,短句,外面开始下雨了。,zh,auto,auto,,42,陈述语气与句末收音
+ZH-07,zh,长句,今天的天气很好，适合去公园散步，顺便看看湖边新开的咖啡馆。,zh,auto,auto,,42,长句停顿与气息
+ZH-08,zh,长句,如果你明天上午有空，我们可以先把方案过一遍，再决定下午是否去见客户。,zh,auto,auto,,42,条件句与多分句衔接
+ZH-09,zh,长句,这本书讲的是一个小镇在经历洪水之后，居民们如何重新建起自己的家园。,zh,auto,auto,,42,长定语与语义完整
+ZH-10,zh,长句,请把冰箱里的牛奶拿出来，放到桌上，然后把昨天买的草莓洗干净。,zh,auto,auto,,42,连续指令与停顿
+ZH-11,zh,长句,列车即将进站，请站在黄色安全线以内，照顾好老人和小孩，先下后上。,zh,auto,auto,,42,广播语气与节奏
+ZH-12,zh,长句,我们花了整整一个下午整理旧照片，最后留下了一箱最有纪念意义的。,zh,auto,auto,,42,句末完整，避免吞字
+ZH-13,zh,数字,订单号是四七二九，一共三百六十八元。,zh,auto,auto,,42,数字逐位读法与金额
+ZH-14,zh,数字,请在十月二十一日下午两点十五分到三楼会议室。,zh,auto,auto,,42,日期、时间与楼层
+ZH-15,zh,数字,这段路全长一千二百米，步行大约需要十五分钟。,zh,auto,auto,,42,千位数与时长
+ZH-16,zh,数字,库存还剩两千零五件，明天上午会补货三千件。,zh,auto,auto,,42,含零数字与补货数量
+ZH-17,zh,中英混排,这个 App 的 UI 做得不错，但 loading 时间有点长。,auto,auto,auto,,42,中英切换与英文缩写
+ZH-18,zh,中英混排,请把 PDF 发到我的邮箱，抄送一份给 HR。,auto,auto,auto,,42,字母缩写与句中停顿
+ZH-19,zh,声音设计,夜深了，城市的灯还亮着，愿你能睡个好觉。,zh,voice_design,design,一位三十岁左右的女性，声音温柔、语速稍慢，适合夜间电台。,42,音色是否符合描述与文本完整
+ZH-20,zh,声音设计,这片森林已经在这座山谷里生长了三百年。,zh,voice_design,design,一位五十岁左右的男性，声音低沉、有磁性，像纪录片旁白。,42,低沉音色与长句稳定
+EN-01,en,短句,Please close the door.,en,auto,auto,,42,短句清晰度与句末语调
+EN-02,en,短句,The meeting moved to three o'clock.,en,auto,auto,,42,时间表达
+EN-03,en,短句,This coffee tastes a little bitter.,en,auto,auto,,42,短句自然度
+EN-04,en,短句,The elevator is already on the first floor.,en,auto,auto,,42,序数词与陈述句调
+EN-05,en,短句,Don't forget to bring your keys.,en,auto,auto,,42,提醒语气与缩写
+EN-06,en,长句,"The weather is lovely today, so we decided to take a walk by the lake and try the new café near the park.",en,auto,auto,,42,长句停顿与重音
+EN-07,en,长句,"If you have time tomorrow morning, let's review the proposal first and then decide whether we need to meet the client in the afternoon.",en,auto,auto,,42,条件句与多分句衔接
+EN-08,en,长句,"The book tells the story of a small town rebuilding itself after a flood, and how the neighbors learn to rely on one another.",en,auto,auto,,42,长定语与语义完整
+EN-09,en,长句,"Please take the milk out of the fridge, put it on the table, and wash the strawberries we bought yesterday.",en,auto,auto,,42,连续指令与停顿
+EN-10,en,长句,"The train is arriving. Please stand behind the yellow line, keep an eye on children and elderly passengers, and let others get off first.",en,auto,auto,,42,广播语气与节奏
+EN-11,en,数字,"The order number is four seven two nine, and the total comes to three hundred sixty-eight dollars.",en,auto,auto,,42,数字逐位与金额
+EN-12,en,数字,Please come to the third-floor meeting room at two fifteen in the afternoon on October twenty-first.,en,auto,auto,,42,日期、时间与楼层
+EN-13,en,数字,"The trail is one thousand two hundred meters long, and it takes about fifteen minutes to walk.",en,auto,auto,,42,千位数与时长
+EN-14,en,中英混排,"We need to update the README before the next sprint, and please add a short FAQ section.",en,auto,auto,,42,英文句中的缩写与专有词
+EN-15,en,声音设计,Welcome aboard! Let's take a quick look at what this little device can do.,en,voice_design,design,"A cheerful young female voice with a bright, energetic tone, suitable for a product demo.",42,音色是否符合描述与感叹语气
+DE-01,de,短句,Bitte schließen Sie die Tür.,de,auto,auto,,42,短句清晰度与礼貌语气
+DE-02,de,长句,"Das Wetter ist heute schön, deshalb gehen wir am See spazieren und probieren danach den neuen Kaffeeladen im Park.",de,auto,auto,,42,长句停顿与复合词
+DE-03,de,数字,"Die Bestellnummer ist vier sieben zwei neun, und der Gesamtbetrag beträgt dreihundertachtundsechzig Euro.",de,auto,auto,,42,数字逐位与长复合数字
+ES-01,es,短句,"Por favor, cierra la puerta.",es,auto,auto,,42,短句清晰度与礼貌语气
+ES-02,es,长句,"Hoy hace muy buen tiempo, así que vamos a caminar junto al lago y luego probaremos la cafetería nueva del parque.",es,auto,auto,,42,长句停顿与连读
+ES-03,es,数字,El número de pedido es cuatro siete dos nueve y el total es de trescientos sesenta y ocho euros.,es,auto,auto,,42,数字逐位与金额
+FR-01,fr,短句,"Veuillez fermer la porte, s'il vous plaît.",fr,auto,auto,,42,短句清晰度与礼貌语气
+FR-02,fr,长句,"Il fait très beau aujourd'hui, alors nous allons marcher au bord du lac avant d'essayer le nouveau café du parc.",fr,auto,auto,,42,长句停顿与联诵
+FR-03,fr,数字,"Le numéro de commande est quatre sept deux neuf, et le montant total est de trois cent soixante-huit euros.",fr,auto,auto,,42,数字逐位与金额
+KO-01,ko,短句,문을 닫아 주세요.,ko,auto,auto,,42,短句清晰度与礼貌语尾
+KO-02,ko,长句,"오늘 날씨가 정말 좋아서 호수 근처를 산책하고, 그다음에 공원에 새로 생긴 카페에 가 보려고 합니다.",ko,auto,auto,,42,长句停顿与连接词
+KO-03,ko,数字,"주문 번호는 사 칠 이 구이고, 총금액은 삼백육십팔 유로입니다.",ko,auto,auto,,42,数字逐位与金额
+JA-01,ja,短句,ドアを閉めてください。,ja,auto,auto,,42,短句清晰度与礼貌语尾
+JA-02,ja,长句,今日はとてもいい天気なので、湖の近くを散歩してから、公園にできた新しいカフェに行ってみようと思います。,ja,auto,auto,,42,长句停顿与助词
+JA-03,ja,数字,注文番号は四七二九で、合計金額は三百六十八ユーロです。,ja,auto,auto,,42,数字读法与金额

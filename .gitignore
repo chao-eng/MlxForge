@@ -6,3 +6,4 @@ models/
 envs/
 logs/
 .venv/
+output/

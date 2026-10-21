@@ -1,8 +1,13 @@
-# Hy-MT2 API
+# MlxForge API
 
-本地服务的 HTTP 接口。默认监听 `127.0.0.1:8000`，没有鉴权，默认不启用 CORS；Web UI 与接口同源。字段定义以 [hy-mt2-prd.md](hy-mt2-prd.md) 的 UC-04、UC-05、UC-06 为准。
+两个运行时各自启动一个进程，默认都监听 `127.0.0.1:8000`，没有鉴权，默认不启用 CORS；Web UI 与接口同源，同一时间只能启动一个运行时。
 
-## GET /v1/models
+- Hy-MT2：字段定义以 [hy-mt2-prd.md](hy-mt2-prd.md) 的 UC-04、UC-05、UC-06 为准
+- Ming-3.0-tts：字段定义以 [ming3-tts-prd.md](ming3-tts-prd.md) 的 §4、§6.2 和附录 A-6 为准
+
+## Hy-MT2
+
+### GET /v1/models
 
 ```json
 {
@@ -13,7 +18,7 @@
 
 不触发模型加载。`id` 固定为 `Hy-MT2`。
 
-## POST /v1/chat/completions
+### POST /v1/chat/completions
 
 请求体上限 1MB。未识别字段忽略，`model` 原样回显，服务端不改写消息内容。
 
@@ -44,7 +49,7 @@ Translate the following text into {target_lang}. Note that you should only outpu
 
 CLI 和 Web UI 使用中文格式，语言名取官方中文名；CLI 也接受英文名和缩写，内部会归一成中文名。
 
-### 非流式响应
+#### 非流式响应
 
 ```json
 {
@@ -64,7 +69,7 @@ CLI 和 Web UI 使用中文格式，语言名取官方中文名；CLI 也接受�
 
 不返回 `usage`。`finish_reason` 正常结束为 `stop`，达到 `max_tokens` 为 `length`。
 
-### 流式响应
+#### 流式响应
 
 `text/event-stream`。服务端先完成整段生成，再把译文切成中文单字、英文单词、标点和空白逐块下发，不是逐 token 生成。
 
@@ -78,7 +83,7 @@ data: [DONE]
 
 生成失败时下发一条 `data: {"error": {"type": "...", "message": "..."}}` 后关闭连接，不再下发 `[DONE]`。
 
-## GET /health
+### GET /health
 
 不触发模型加载，不暴露本地路径。
 
@@ -101,7 +106,7 @@ data: [DONE]
 | `idle_timeout_seconds` | 空闲阈值，`0` 表示常驻 |
 | `last_error` | 仅 `failed` 时出现，中文说明，不含堆栈 |
 
-## 错误
+### 错误
 
 所有错误响应统一为：
 
@@ -119,8 +124,199 @@ data: [DONE]
 | 503 | `model_unavailable` | 权重缺失、加载失败、服务正在停止 |
 | 500 | `internal_error` | 未预期异常，堆栈只进日志 |
 
-## 运行约束
+### 运行约束
 
 - 单 worker 串行推理，等待队列默认 8，可用 `HY_MT2_MAX_QUEUE` 调整。
 - 客户端在排队时断开，请求移出队列；已开始生成时不中断，完成后丢弃结果。
 - 收到 SIGTERM 后排队请求立即返回 503，在途生成最多等待 30 秒。
+
+## Ming-3.0-tts
+
+只实现 OpenAI Audio Speech 的非流式兼容子集。矩阵外的行为不承诺兼容，`stream=true` 返回 400。
+
+### GET /v1/models
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "Ming-3.0-tts",
+      "object": "model",
+      "created": 1792566510,
+      "owned_by": "mlxforge"
+    }
+  ]
+}
+```
+
+不触发模型加载。`created` 是进程启动时间。
+
+### POST /v1/audio/speech
+
+请求体上限 20MB，超出返回 413 且不解析正文。未识别字段忽略；`model` 接受任意字符串，实际只服务 `Ming-3.0-tts`，不因未知模型名返回 400。
+
+| 字段 | 类型 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `model` | string | 否 | `Ming-3.0-tts` | 不校验取值 |
+| `input` | string | 是 | 无 | 去除首尾空白后 1~1000 个 Unicode 码点，见下方计数口径 |
+| `voice` | string | 否 | `auto` | `auto`、`design` 或内置音色名 |
+| `language` | string | 否 | `auto` | `auto`、`zh`、`en`、`de`、`es`、`fr`、`ko`、`ja`、`sichuanese`、`cantonese` |
+| `response_format` | string | 否 | `wav` | 只支持 `wav`、`pcm` |
+| `speed` | float | 否 | `1.0` | 0.5~2.0，实验能力 |
+| `pitch` | int | 否 | `0` | -12~12，实验能力 |
+| `volume` | float | 否 | `1.0` | 0.5~2.0，实验能力 |
+| `emotion` | string | 否 | 空 | 1~32 个码点，实验能力 |
+| `instructions` | string | 否 | 空 | 1~500 个码点，映射到自由指令、声音设计或 IP 模式 |
+| `reference_audio` | string | 否 | 空 | base64 或 `data:<类型>;base64,<数据>`，必须与 `reference_text` 成对出现 |
+| `reference_text` | string | 否 | 空 | 参考音频的逐字转录，1~500 个码点 |
+| `task` | string | 否 | `auto` | `auto`、`tts`、`freeform`、`voice_design`、`multilingual`、`basic`、`emotion`、`dialect`、`ip` |
+| `seed` | int | 否 | 随机 | 0~2147483647，实际值见响应头 `X-Seed` |
+| `stream` | bool | 否 | `false` | v1 只支持非流式，`true` 返回 400 |
+
+参考音频限制：WAV 或 FLAC，5~30 秒，采样率 16k~48kHz，单声道或双声道，解码后不超过 10MB。不合格返回 400。
+
+`voice` 只校验命名形式（`US_*`、`UK_*` 或纯中文名），无法判断「名字合法但音色不存在」；这类值会原样透传给模型，不报错。OpenAI 默认音色名（`alloy`、`echo`、`nova` 等）显式返回 400，不静默回退。
+
+#### 输入计数口径
+
+`input`、`instructions`、`emotion`、`reference_text` 的长度都按 **Unicode 码点** 计数，不是 UTF-16 码元，也不是字节。
+
+- Python：`len(text)`
+- JavaScript：`Array.from(text).length`，不要用 `text.length`（会把 emoji 等算成两个）
+
+1000 个码点是**临时上限**，Spike 确认长文本能力和耗时后冻结。超出上限返回 400。
+
+#### 任务模式
+
+`task` 的权威定义见 PRD 附录 A-6，这里只列摘要。`auto` 是请求值，不会出现在响应头 `X-Resolved-Task` 中。
+
+| `task` | 模型侧任务 | `auto` 触发条件 | 必填 | 禁止（400） |
+| --- | --- | --- | --- | --- |
+| `tts` | `TTS` | 有 `reference_audio`；或 `voice` 为内置音色且无其他控制项 | `input`；克隆时 `reference_text` | `voice=design`、`instructions`、`emotion`、非默认属性、方言 |
+| `freeform` | `FREEFORM` | 有 `instructions`，且无音色、参考音频、情绪、属性、方言 | `instructions` | 内置音色、`voice=design`、`emotion`、非默认属性、方言 |
+| `voice_design` | `VOICE_DESIGN` | `voice=design` | `instructions` | 参考音频、内置音色、`emotion`、非默认属性、方言 |
+| `multilingual` | `MULTILINGUAL` | `language` 为 de/es/fr/ko/ja，且无音色、指令、情绪、属性 | `language` | `instructions`、`emotion`、非默认属性、方言、参考音频、`voice=design` |
+| `basic` | `BASIC` | 无任何控制项 | `input` | `voice`≠`auto`、`instructions`、`emotion`、非默认属性、参考音频、方言、de/es/fr/ko/ja |
+| `emotion` | `EMOTION` | `emotion` 或属性非默认，且无指令、方言、参考音频 | `emotion` 或至少一项非默认属性 | `instructions`、方言、参考音频、`voice=design` |
+| `dialect` | `DIALECT` | `language` 为 sichuanese/cantonese，且无指令、情绪、属性、参考音频 | `language` | `instructions`、`emotion`、非默认属性、参考音频、`voice=design` |
+| `ip` | `IP` | 仅显式 `task=ip` | `instructions` | 参考音频、内置音色、`emotion`、非默认属性、方言 |
+
+`auto` 解析顺序：参考音频 → `voice=design` → 方言 → 情绪或非默认属性 → `instructions` → 内置音色 → de/es/fr/ko/ja → `basic`。
+
+解析前先做七项冲突检查，命中任一直接 400，不做静默降级。参数冲突要么显式选择任务模式，要么移除冲突字段。`freeform` 带参考音频只能显式指定，`auto` 不会推断出这一组合。
+
+#### 能力状态
+
+| 能力 | 状态 | API 行为 |
+| --- | --- | --- |
+| 基础合成、内置音色、声音克隆、声音设计、多语言 | 已验证 | 正常处理 |
+| `emotion`、`speed`、`pitch`、`volume`、方言、`task=ip` | 实验 | 原样透传，不返回 400，也不承诺效果；模型不识别时按默认语气合成 |
+| 流式音频、MP3/Opus/AAC/FLAC 输出 | 不支持 | 返回 400 |
+
+情绪是自由字符串，建议值：中性、高兴、悲伤、愤怒、惊讶、恐惧、厌恶、温柔、严肃。服务端不校验具体词。
+
+#### 响应头
+
+成功响应是纯二进制，`Content-Type` 为 `audio/wav` 或 `audio/pcm`。
+
+| 响应头 | 说明 |
+| --- | --- |
+| `X-Request-Id` | 请求标识，UUID |
+| `X-Resolved-Task` | 实际使用的模型侧任务：`TTS`、`FREEFORM`、`VOICE_DESIGN`、`MULTILINGUAL`、`BASIC`、`EMOTION`、`DIALECT`、`IP` |
+| `X-Seed` | 本次使用的随机种子，未传时为服务生成的值 |
+| `X-Audio-Sample-Rate` | 固定 `44100` |
+| `X-Audio-Bits` | 固定 `16` |
+| `X-Audio-Channels` | 固定 `1` |
+| `X-Audio-Byte-Order` | 固定 `little`，PCM 为小端裸字节流 |
+| `X-Audio-Duration` | 音频时长，秒，保留两位小数 |
+| `X-Audio-Format` | `wav` 或 `pcm` |
+| `Content-Disposition` | `attachment; filename="speech-<request_id>.wav"`，扩展名随格式变化 |
+| `Cache-Control` | `no-store` |
+
+输出固定 44.1kHz、16-bit、单声道。裸 PCM 没有容器头，必须靠 `X-Audio-*` 判断格式。
+
+#### 示例
+
+curl：
+
+```bash
+curl http://127.0.0.1:8000/v1/audio/speech \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Ming-3.0-tts","input":"今天下午三点我们在楼下咖啡店见面。","voice":"auto","response_format":"wav"}' \
+  -o speech.wav
+```
+
+OpenAI Python SDK（`openai==1.109.1` 实测）：
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key="not-needed")
+
+response = client.audio.speech.create(
+    model="Ming-3.0-tts",
+    voice="auto",
+    input="今天下午三点我们在楼下咖啡店见面。",
+    response_format="wav",
+)
+response.write_to_file("speech.wav")
+```
+
+`voice`、`response_format` 应显式传入。不同 SDK 版本对 `response_format` 的默认处理不一致（实测 `1.109.1` 未显式传时会省略该字段，服务端按 `wav` 处理），显式传值才不会随版本变化。`api_key` 填任意非空值即可，服务端不校验鉴权。
+
+### GET /health
+
+不触发模型加载，不暴露本地路径。
+
+```json
+{
+  "status": "ok",
+  "state": "ready",
+  "model_loaded": true,
+  "idle_seconds": 12.3,
+  "idle_timeout_seconds": 1200,
+  "sample_rate": 44100
+}
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `status` | `ok` 可服务；`degraded` 表示权重缺失或加载失败 |
+| `state` | `unloaded`、`loading`、`ready`、`generating`、`unloading`、`failed` |
+| `model_loaded` | 权重是否在内存，`loading` 期间为 `false` |
+| `idle_seconds` | 距最后一次生成完成的秒数 |
+| `idle_timeout_seconds` | 空闲阈值，`0` 表示常驻 |
+| `sample_rate` | 固定 `44100` |
+| `last_error` | 仅失败时出现，中文说明，不含堆栈 |
+
+### 错误
+
+结构与 Hy-MT2 一致：
+
+```json
+{"error": {"type": "invalid_request_error", "message": "input 必填，去除首尾空白后不能为空"}}
+```
+
+| HTTP | `error.type` | 场景 |
+| --- | --- | --- |
+| 400 | `invalid_request_error` | 字段缺失、参数越界、任务模式冲突、参考音频不合格、不支持的格式或流式、Host 头不被允许 |
+| 404 | `not_found` | 接口不存在 |
+| 405 | `method_not_allowed` | 请求方法不允许 |
+| 413 | `payload_too_large` | 请求体超过 20MB |
+| 429 | `queue_full` | 等待队列已满或排队超时，带 `Retry-After: 5` |
+| 503 | `model_unavailable` | 权重缺失、加载失败、参考音频临时目录不可用、服务正在停止 |
+| 500 | `internal_error` | 未预期异常，堆栈只进日志 |
+
+`Retry-After` 是固定值 5 秒，不保证重试时队列已有余量。
+
+### 运行约束
+
+- 单 worker 串行推理，避免并发进入 Metal；采样噪声是全局状态，并发会串线。
+- 1 个在途任务 + 默认 8 个等待任务，可用 `MING_TTS_MAX_QUEUE` 调整；第 9 个等待请求返回 429。
+- 排队超时默认 120 秒，从入队成功开始计时，可用 `MING_TTS_QUEUE_TIMEOUT` 调整；超时返回 429，不重复处理。
+- 客户端排队时断开，请求移出队列；已开始合成不中断，完成后丢弃结果。
+- 参考音频只在不持久化的临时目录中处理，请求结束即删除；目录不可用时克隆返回 503，其他模式不受影响。
+- 默认只监听 `127.0.0.1`，开放局域网必须同时设置 `MING_TTS_ALLOW_REMOTE=1`，否则启动失败。服务没有鉴权，同网段设备都能调用。
+- 收到 SIGTERM 后排队请求返回 503，在途合成最多等待 120 秒。
+- 模型空闲默认 1200 秒后卸载，`MING_TTS_IDLE_TIMEOUT` 可调，`0` 表示常驻。
