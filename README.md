@@ -4,11 +4,12 @@
 
 不用 Docker，只跑 macOS 原生环境。每个模型有自己的 Python 环境，对外共用一套 HTTP API 和一个 Web UI。
 
-> 项目刚起步，目前只有 Hy-MT2 运行时，语音合成和统一调度还没开始。
+> 项目刚起步，目前只有 Hy-MT2 运行时和它的单页 Web UI，语音合成和统一调度还没开始。
 
 ## 能做什么
 
-- 本地翻译。贴一段文本，指定源语言和目标语言，拿到译文。权重放在本机，断网也能用。
+- 本地翻译。贴一段文本，选目标语言（官方支持语言表，含繁体中文和粤语），源语言由模型自动判断，拿到译文。权重放在本机，断网也能用。
+- 浏览器翻译。服务启动后在页面里完成翻译和复制，页面与接口同源，不需要另起前端服务。
 - 本地配音。输入台词，挑一个音色，输出 wav。也可以用一段参考音频来定音色。
 - 统一调用。两个模型在同一个界面里使用，能对比译文，也能试听生成结果。
 
@@ -47,7 +48,7 @@ macOS 上的容器跑在 Linux 虚拟机里，拿不到 Metal，MLX 用不上。
 
 调度器按需加载模型。首次请求时把权重读进内存，默认 20 分钟没有请求就卸载，同时清掉 Metal 缓存。每个运行时的依赖、权重路径和启动命令写在清单里，接新模型时不用改调度器。
 
-## 接口（草案）
+## 接口
 
 ```http
 GET  /v1/models
@@ -80,25 +81,37 @@ GET  /health
 envs/hy-mt2/bin/python -m runtimes.hy_mt2.cli --text "Hello world." --target 中文
 ```
 
-启动 API。
+构建 Web UI。用 pnpm，构建产物在 `web/dist`，服务启动时自动挂到 `/`。
 
 ```bash
-envs/hy-mt2/bin/python -m uvicorn runtimes.hy_mt2.app:create_app --factory --host 127.0.0.1 --port 8000
+cd web && pnpm install && pnpm build && cd ..
 ```
 
-默认只监听本机。需要局域网访问时把 host 改成 `0.0.0.0`，服务没有鉴权，开放前先确认网络环境。
+启动 API 和 Web UI。
 
-模型在第一次请求时加载，`HY_MT2_IDLE_TIMEOUT` 控制空闲多少秒后释放，默认 1200 秒。
+```bash
+./scripts/start_hy_mt2.sh
+```
+
+脚本默认监听 `127.0.0.1:8000`，可用 `--host`、`--port` 覆盖。端口被占用会直接报错，不自动换端口。默认只监听本机，需要局域网访问时把 host 改成 `0.0.0.0`，服务没有鉴权，开放前先确认网络环境。
+
+模型在第一次请求时加载，`HY_MT2_IDLE_TIMEOUT` 控制空闲多少秒后释放，默认 1200 秒，`0` 表示常驻。接口字段见 [docs/api.md](docs/api.md)。
+
+开发前端时可以让 Vite 代理接口，另开一个终端跑后端：
+
+```bash
+cd web && pnpm dev
+```
 
 ## 进度
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | 0.1 | 仓库骨架、环境脚本、权重下载 | 完成 |
-| 0.2 | Hy-MT2 运行时，命令行与 OpenAI 兼容接口 | 完成 |
+| 0.2 | Hy-MT2 运行时，命令行、OpenAI 兼容接口和单页 Web UI | 完成 |
 | 0.3 | 统一调度器接管多模型加载与端口 | 计划 |
 | 0.4 | Ming-3.0-tts 命令行推理跑通，输出 wav | 计划 |
-| 0.5 | Web UI，支持试听和译文对比 | 计划 |
+| 0.5 | Web UI 支持试听和译文对比 | 计划 |
 
 ## 参与
 
@@ -106,4 +119,6 @@ envs/hy-mt2/bin/python -m uvicorn runtimes.hy_mt2.app:create_app --factory --hos
 
 ## 许可证
 
-待定，第一版代码落地时补。
+仓库代码的许可证待定，第一版代码落地时补。
+
+Hy-MT2-1.8B 权重来自 ModelScope 的 `bujidc/mlx-community_Hy-MT2-1.8B-4bit`，由腾讯混元开源，采用 Apache License 2.0，许可证原文随权重保存在 `models/hy-mt2/4bit/LICENSE.txt`，权重本身不入库。

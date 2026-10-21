@@ -37,7 +37,7 @@
 2. **框架**：Vue 3 + Composition API，所有组件使用 `<script setup lang="ts">`；入口 `src/main.ts`，根组件 `src/App.vue`。
 3. **构建**：Vite；`vite.config.ts` 只把 `/v1` 和 `/health` 代理到 `http://127.0.0.1:8000`，业务代码不出现该地址；生产环境同源部署。
 4. **类型**：`tsconfig.json` 开启 `strict`；`typecheck` 脚本固定为 `vue-tsc --noEmit`。
-5. **UI**：只用 `tdesign-vue-next` 和 `tdesign-icons-vue-next`，按需引入；颜色、圆角、间距取 TDesign 变量，不手写十六进制色值。
+5. **UI**：只用 `tdesign-vue-next` 和 `tdesign-icons-vue-next`，按需引入；颜色、圆角、间距取 TDesign 变量，组件内不手写十六进制色值。PRD 5.3 的视觉规范例外：允许在 `src/styles/app.css` 的 `:root` 中集中覆盖 `--td-*` 变量，组件内仍禁止写色值。
 6. **样式**：组件样式写在 `<style scoped>`；全局样式只放 `src/styles/app.css`；不引入 Tailwind、UnoCSS、Sass 预处理框架。
 7. **接口类型**：请求和响应类型集中在 `src/api/types.ts`，字段与 PRD UC-04、UC-06 一一对应；错误统一按 `{"error": {"type", "message"}}` 解析。
 8. **流式**：用 `fetch` 读取 `ReadableStream`，按行解析 `data:`；必须处理 `[DONE]` 和服务端错误事件；界面只描述为「分块显示」，不得宣称逐 token 输出。

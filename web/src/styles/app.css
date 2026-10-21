@@ -1,0 +1,106 @@
+/*
+ * PRD 5.3 的视觉规范集中映射到 TDesign 变量，组件内不写色值。
+ * 覆盖放在 :root 与 :root[theme-mode='light'] 两级，避免主题属性提高优先级后失效。
+ */
+:root,
+:root[theme-mode='light'] {
+  --td-brand-color: #2563eb;
+  --td-brand-color-hover: #3b82f6;
+  --td-brand-color-active: #1d4ed8;
+  --td-brand-color-focus: rgba(37, 99, 235, 0.2);
+  --td-brand-color-disabled: #93c5fd;
+  --td-brand-color-light: #eff6ff;
+  --td-brand-color-light-hover: #dbeafe;
+  --td-brand-color-light-active: #bfdbfe;
+  --td-error-color: #dc2626;
+  --td-error-color-hover: #ef4444;
+  --td-error-color-active: #b91c1c;
+  --td-error-color-focus: rgba(220, 38, 38, 0.2);
+  --td-error-color-light: #fef2f2;
+  --td-text-color-primary: #0f172a;
+  --td-text-color-secondary: #64748b;
+  --td-text-color-placeholder: #64748b;
+  --td-text-color-disabled: #cbd5e1;
+  --td-border-level-1-color: #e2e8f0;
+  --td-border-level-2-color: #cbd5e1;
+  --td-radius-default: 8px;
+  --td-radius-medium: 8px;
+  --td-radius-large: 8px;
+}
+
+:root {
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--td-text-color-primary);
+  background-color: var(--td-bg-color-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--td-bg-color-page);
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100vh;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px 40px;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--td-border-level-1-color);
+}
+
+.app-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--td-text-color-primary);
+}
+
+.app-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--td-text-color-secondary);
+}
+
+.app-main {
+  flex: 1;
+}
+
+.app-footer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--td-text-color-placeholder);
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    gap: 16px;
+    padding: 20px 16px 28px;
+  }
+
+  .app-header {
+    flex-direction: column;
+  }
+}

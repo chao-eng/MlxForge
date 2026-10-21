@@ -4,7 +4,7 @@
 
 ## 项目现状
 
-仓库里现在有 Hy-MT2 运行时（`runtimes/hy_mt2/`），`server/` 和 `web/` 还没开始。`models/` 和 `envs/` 不入库。Hy-MT2 另有一套能跑的单模型服务，在 `~/HyMT2-Server`，部署文档在 CalmBar 仓库的 `doc/HyMT2部署/`。动 Hy-MT2 之前先读这两处，不要从零重写。
+仓库里现在有 Hy-MT2 运行时（`runtimes/hy_mt2/`）和单页 Web UI（`web/`），`server/` 还没开始。`models/` 和 `envs/` 不入库。Hy-MT2 另有一套能跑的单模型服务，在 `~/HyMT2-Server`，部署文档在 CalmBar 仓库的 `doc/HyMT2部署/`。动 Hy-MT2 之前先读这两处，不要从零重写。
 
 ## 目标
 
