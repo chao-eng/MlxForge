@@ -1,0 +1,5 @@
+name = "hy-mt2"
+python = "3.11"
+entry = "runtimes.hy_mt2.app:create_app"
+weights = "models/hy-mt2/4bit"
+idle_timeout = 1200
