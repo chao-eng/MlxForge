@@ -65,6 +65,10 @@ def _build_kwargs(
         "instruct": _build_instruction(request, task),
         # 中英文不传 language ID，由模型默认处理（A-5）
         "lang_code": task.language_id or "auto",
+        # 官方参考实现给风格描述、自由指令和 IP 音色都填充一个全零说话人槽
+        "use_zero_spk_emb": task.mode in ("freeform", "voice_design", "ip"),
+        "cfg_scale": request.cfg,
+        "sigma": request.sigma,
         "stream": False,
     }
     if reference_path is not None:
@@ -76,8 +80,12 @@ def _build_kwargs(
 def _build_instruction(
     request: SpeechRequest, task: ResolvedTask
 ) -> Optional[str]:
-    if task.mode in ("freeform", "voice_design"):
+    if task.mode == "freeform":
         return request.instructions
+    if task.mode == "voice_design":
+        # 官方 VOICE_DESIGN 传的是结构化 caption，描述放在「风格」字段；
+        # 纯文本指令属于 FREEFORM，两者训练输入不同（prompt_contract.py）
+        return ming3_instruction(style=request.instructions)
     if task.mode == "ip":
         return ming3_instruction(ip=request.instructions)
     if task.mode == "emotion":

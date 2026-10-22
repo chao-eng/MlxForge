@@ -3,7 +3,10 @@ import {
   Alert,
   Button,
   Checkbox,
+  Collapse,
+  CollapsePanel,
   Dialog,
+  InputNumber,
   Link,
   Option,
   RadioButton,
@@ -34,7 +37,10 @@ app.use(RadioGroup)
 app.use(RadioButton)
 app.use(Upload)
 app.use(Checkbox)
+app.use(Collapse)
+app.use(CollapsePanel)
 app.use(Dialog)
+app.use(InputNumber)
 app.use(Link)
 
 app.mount('#app')

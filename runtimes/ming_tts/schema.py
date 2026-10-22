@@ -22,6 +22,13 @@ MAX_REFERENCE_AUDIO_BYTES = 10 * 1024 * 1024
 # base64 每 3 字节编码为 4 字符，按上限换算成编码后的字符数，避免在事件循环里解码
 MAX_REFERENCE_AUDIO_BASE64_CHARS = ((MAX_REFERENCE_AUDIO_BYTES + 2) // 3) * 4
 MAX_SEED = 2147483647
+# 流匹配头的采样参数，默认值与官方参考实现一致
+DEFAULT_CFG = 2.0
+DEFAULT_SIGMA = 0.25
+MIN_CFG = 1.0
+MAX_CFG = 5.0
+MIN_SIGMA = 0.0
+MAX_SIGMA = 1.0
 
 MIN_REFERENCE_SECONDS = 5.0
 MAX_REFERENCE_SECONDS = 30.0
@@ -93,6 +100,8 @@ class SpeechRequest:
     speed: float
     pitch: int
     volume: float
+    cfg: float
+    sigma: float
     emotion: str
     instructions: str
     reference_audio: str
@@ -236,6 +245,15 @@ def parse_speech_request(data: Any) -> SpeechRequest:
     if not 0.5 <= volume <= 2.0:
         raise invalid("volume 范围是 0.5~2.0")
 
+    # cfg 和 sigma 只影响流匹配头的采样，不参与任务解析与冲突检查
+    cfg = _number(data, "cfg", DEFAULT_CFG)
+    if not MIN_CFG <= cfg <= MAX_CFG:
+        raise invalid("cfg 范围是 1.0~5.0")
+
+    sigma = _number(data, "sigma", DEFAULT_SIGMA)
+    if not MIN_SIGMA <= sigma <= MAX_SIGMA:
+        raise invalid("sigma 范围是 0~1")
+
     emotion = _string(data, "emotion")
     if emotion.strip():
         emotion = _bounded_text(emotion, "emotion", 1, MAX_EMOTION_CODEPOINTS)
@@ -305,6 +323,8 @@ def parse_speech_request(data: Any) -> SpeechRequest:
         speed=speed,
         pitch=pitch,
         volume=volume,
+        cfg=cfg,
+        sigma=sigma,
         emotion=emotion,
         instructions=instructions,
         reference_audio=reference_audio,

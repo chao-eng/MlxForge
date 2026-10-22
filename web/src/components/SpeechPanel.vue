@@ -3,7 +3,9 @@ import { computed, ref } from 'vue'
 import AudioResult from './AudioResult.vue'
 import CloneFields from './CloneFields.vue'
 import DesignFields from './DesignFields.vue'
+import ParalinguisticTags from './ParalinguisticTags.vue'
 import { useSpeech } from '../composables/useSpeech'
+import { VOICE_OPTION_GROUPS } from '../api/voices'
 
 const MAX_TEXT_CODEPOINTS = 1000
 
@@ -18,6 +20,9 @@ const {
   language,
   voice,
   description,
+  designMode,
+  cfg,
+  sigma,
   refText,
   authorized,
   reference,
@@ -47,10 +52,11 @@ const LANGUAGE_OPTIONS = [
 
 const VOICE_OPTIONS = [
   { label: 'auto（由模型决定）', value: 'auto' },
-  { label: 'UK_Charlotte', value: 'UK_Charlotte' },
-  { label: 'US_James', value: 'US_James' },
-  { label: '灵小柔', value: '灵小柔' },
+  ...VOICE_OPTION_GROUPS,
 ]
+
+// 官方支持的 14 个副语言标签，说明放在折叠面板里，标签需要嵌在台词中
+const PARALINGUISTIC_HINT = '支持 [Laughter]、[Sigh] 等 14 个副语言标签，展开下方查看说明'
 
 const modeTabs = computed(() => [
   { value: 'builtin', label: '内置音色', disabled: isSubmitting.value },
@@ -106,6 +112,7 @@ function handleConfirm(): void {
     <DesignFields
       v-if="mode === 'design'"
       v-model:description="description"
+      v-model:mode="designMode"
       :disabled="isSubmitting"
     />
 
@@ -121,6 +128,8 @@ function handleConfirm(): void {
         {{ codepoints }}/{{ MAX_TEXT_CODEPOINTS }}
         <template v-if="textTooLong">，已超出上限</template>
       </span>
+      <span class="field-hint">{{ PARALINGUISTIC_HINT }}</span>
+      <ParalinguisticTags />
     </div>
 
     <div class="params">
@@ -139,6 +148,38 @@ function handleConfirm(): void {
         />
       </div>
     </div>
+
+    <t-collapse :borderless="true">
+      <t-collapse-panel header="高级参数（CFG / Sigma）" value="advanced">
+        <div class="params">
+          <div class="param">
+            <span class="field-label">CFG scale</span>
+            <t-input-number
+              v-model="cfg"
+              theme="normal"
+              :min="1"
+              :max="5"
+              :step="0.1"
+              :decimal-places="2"
+              :disabled="isSubmitting"
+            />
+          </div>
+          <div class="param">
+            <span class="field-label">Sigma（采样噪声）</span>
+            <t-input-number
+              v-model="sigma"
+              theme="normal"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :decimal-places="2"
+              :disabled="isSubmitting"
+            />
+          </div>
+          <span class="field-hint">默认 2.0 / 0.25，与官方一致；调高 CFG 更贴近描述，调高 Sigma 更多变化</span>
+        </div>
+      </t-collapse-panel>
+    </t-collapse>
 
     <div v-if="mode === 'clone'" class="field">
       <t-checkbox v-model="authorized" :disabled="isSubmitting">

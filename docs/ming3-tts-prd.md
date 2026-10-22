@@ -342,6 +342,8 @@ Ming-3.0-tts 的官方推理实现是 PyTorch，MLX 转换版需要搭配 mlx-au
 | speed | 语速 | float | 0.5~2.0 | 否 | 1.0 |
 | pitch | 音高 | int | -12~12 | 否 | 0 |
 | volume | 音量 | float | 0.5~2.0 | 否 | 1.0 |
+| cfg | CFG scale | float | 1.0~5.0 | 否 | 2.0 |
+| sigma | 采样噪声 | float | 0~1 | 否 | 0.25 |
 | seed | 随机种子 | int | 0~2147483647 | 否 | 随机 |
 | format | 输出格式 | string | `wav`、`pcm` | 否 | 按 `--output` 扩展名推断；`--output` 与 `--format` 均未指定时为 `wav`（见 BR-08） |
 
@@ -391,6 +393,8 @@ Ming-3.0-tts 的官方推理实现是 PyTorch，MLX 转换版需要搭配 mlx-au
 | speed | 语速 | float | 0.5~2.0 | 否 | 1.0 |
 | pitch | 音高 | int | -12~12，单位半音 | 否 | 0 |
 | volume | 音量 | float | 0.5~2.0 | 否 | 1.0 |
+| cfg | CFG scale | float | 1.0~5.0 | 否 | 2.0 |
+| sigma | 采样噪声 | float | 0~1 | 否 | 0.25 |
 | emotion | 情绪 | string | ≤32 字符，建议值见附录 A-6 | 否 | 空 |
 | instructions | 自由指令 | string | ≤500 字符 | 条件必填 | 空 |
 | reference_audio | 参考音频 | string | base64 或 data URL，解码后 ≤10MB | 否 | 空 |
@@ -478,7 +482,7 @@ X-Audio-Format: wav
 
 **任务模式矩阵**：唯一权威定义在附录 A-6。本用例只负责按矩阵校验，不另外维护字段规则。
 
-矩阵中的「控制项」指：`instructions` 非空、`emotion` 非空、`speed`≠1.0、`pitch`≠0、`volume`≠1.0、`voice`≠`auto`、`reference_audio` 存在、`language` 为方言或 `de/es/fr/ko/ja`。`model`、`input`、`response_format`、`seed` 不算控制项；`language=auto/zh/en` 视为未设置。
+矩阵中的「控制项」指：`instructions` 非空、`emotion` 非空、`speed`≠1.0、`pitch`≠0、`volume`≠1.0、`voice`≠`auto`、`reference_audio` 存在、`language` 为方言或 `de/es/fr/ko/ja`。`model`、`input`、`response_format`、`seed`、`cfg`、`sigma` 不算控制项；`language=auto/zh/en` 视为未设置。
 
 | 场景 | 解析结果 | 说明 |
 | --- | --- | --- |
@@ -640,7 +644,7 @@ X-Audio-Format: wav
 请求到达
   │
   ├─ 归一化默认值：speed=1.0、pitch=0、volume=1.0、voice=auto、
-  │  language 缺省/auto/zh/en 视为「未设置」；model/input/response_format/seed 不算控制项
+  │  language 缺省/auto/zh/en 视为「未设置」；model/input/response_format/seed/cfg/sigma 不算控制项
   │
   ├─ 冲突检查（任一命中即 400，不进入解析，也不做静默降级）
   │    1. reference_audio 与 内置音色 或 voice=design 同时出现
@@ -863,13 +867,14 @@ uvicorn 事件循环（单线程）
 ┌──────────────────────────────────────────────────────────────┐
 │  [ 内置音色 ]  [ 声音克隆 ]  [ 声音设计 ]                     │
 ├──────────────────────────────────────────────────────────────┤
+│  模式      ( 声音设计 )  ( 自由指令 )                          │
 │  声音描述  ┌──────────────────────────────────────────────┐  │
-│            │ 例如：温柔成熟的女声，像深夜电台主播，语速舒缓 │  │
+│            │ 例如：一位年轻的女性，声音温柔成熟，语速舒缓   │  │
 │            └──────────────────────────────────────────────┘  │
 │  文本      ┌──────────────────────────────────────────────┐  │
-│            │ 输入要朗读的内容                              │  │
+│            │ 输入要朗读的内容，支持 [Laughter] 等标签       │  │
 │            └──────────────────────────────────────────────┘  │
-│  语言 [ 中文 ▾ ]                              [ 生成语音 ]    │
+│  语言 [ 中文 ▾ ]   CFG [ 2.0 ]   Sigma [ 0.25 ] [ 生成语音 ]  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -883,13 +888,15 @@ uvicorn 事件循环（单线程）
 | 文本输入框 | 多行，自动增高，占位文案「输入要朗读的内容，数字请写成文字」 |
 | 字数提示 | 显示当前码点数和 1000 上限，超限变红并禁用生成；前端使用 `Array.from(text).length` 计数，与后端统一按 Unicode 码点，不能用 `text.length` |
 | 语言下拉 | 默认自动，选项见附录 A-5，含 7 种语言；方言在 Spike 通过前不显示 |
-| 音色组合框 | 可输入内置音色名，提供官方示例作为候选项；`auto` 表示由模型决定 |
+| 音色组合框 | 可输入内置音色名，按英文、中文、中文情绪变体分组展示官方 482 个音色，可搜索；`auto` 表示由模型决定 |
 | 情绪输入 | 下拉加自定义，默认「默认」，建议值见附录 A-6；Spike 通过前隐藏 |
 | 语速、音高、音量 | 滑杆加数值，恢复默认按钮；Spike 通过前隐藏 |
+| CFG scale、Sigma | 数值输入，默认 2.0 / 0.25，范围 1.0~5.0 和 0~1；常驻显示但归入高级参数区域 |
+| 副语言标签说明 | 文本输入框下方提供折叠面板，列出全部 14 个标签及中文含义（如 `[Laughter]` 笑声、`[Question-ah]` 疑问的「啊？」），并说明标签需原样写进台词 |
 | 参考音频上传 | 只接受 WAV/FLAC，显示文件名、时长和大小，超限就地提示 |
 | 参考文本输入 | 多行，提示「必须与参考音频逐字一致」 |
 | 授权勾选 | 克隆页必选，未勾选时生成按钮禁用 |
-| 声音描述 | 声音设计页必填，≤500 字符，提供 2~3 条示例 |
+| 声音描述 | 声音设计页必填，≤500 字符；页内可切换「声音设计 / 自由指令」，两种模式各提供 2~3 条示例，提示文案说明前者描述「谁在说话」、后者描述「怎么说」 |
 | 生成按钮 | 文本为空、超限、克隆资料不全或请求中时禁用，请求中显示「合成中」 |
 | 播放器 | 使用 Blob URL，原生 audio 控件，显示当前时间和总时长 |
 | 下载按钮 | 下载 WAV 或 PCM，文件名带时间戳 |
@@ -1252,7 +1259,7 @@ uvicorn 事件循环（单线程）
 
 任务模式取值：`auto`、`tts`、`freeform`、`voice_design`、`multilingual`、`basic`、`emotion`、`dialect`、`ip`。API 的 `task` 字段用小写；响应头 `X-Resolved-Task` 用模型侧大写名称（`TTS`、`FREEFORM`、`VOICE_DESIGN`、`MULTILINGUAL`、`BASIC`、`EMOTION`、`DIALECT`、`IP`）。`auto` 只是请求值，不会作为解析结果返回。
 
-「控制项」定义：`instructions` 非空、`emotion` 非空、`speed`≠1.0、`pitch`≠0、`volume`≠1.0、`voice`≠`auto`、`reference_audio` 存在、`language` 为方言或 `de/es/fr/ko/ja`。`model`、`input`、`response_format`、`seed` 不算控制项；`language=auto/zh/en` 视为未设置。
+「控制项」定义：`instructions` 非空、`emotion` 非空、`speed`≠1.0、`pitch`≠0、`volume`≠1.0、`voice`≠`auto`、`reference_audio` 存在、`language` 为方言或 `de/es/fr/ko/ja`。`model`、`input`、`response_format`、`seed`、`cfg`、`sigma` 不算控制项；`language=auto/zh/en` 视为未设置。
 
 > 本表及 UC-05 中「`language` 七种任一」统一指 `language`∈{`auto`、`zh`、`en`、`de`、`es`、`fr`、`ko`、`ja`}，即除两种方言外的全部取值（含 `auto` 与中英）。
 
@@ -1417,6 +1424,12 @@ uvicorn 事件循环（单线程）
 | BR-96 | v1 不设服务端生成超时，只受排队超时（BR-58）和关闭等待（BR-60）约束；前端 180 秒等待上限只影响浏览器，不改变服务端任务；原因是长文本可能超过任意固定阈值，强杀会浪费已完成的计算，调用方需要更早放弃时应自行设置 HTTP 客户端超时 |
 | BR-97 | 参考音频临时文件的删除权唯一归推理 worker：正常流程 worker 读取后删除；请求失败（含排队取消、排队超时、客户端断开）时，handler 仅在确认该请求未出队后才在 `finally` 中删除，「未出队」的判断与出队动作在同一临界区完成，不得删除 worker 正在读取的文件 |
 | BR-98 | base64 解码、参考音频解码与校验、临时文件写入、音频编码等重 CPU/IO 操作不得在事件循环内同步执行，必须放入线程池；事件循环只负责参数校验、任务解析、入队和响应组装，避免单个请求的解码耗时阻塞其他请求的响应 |
+| BR-99 | `cfg` 范围 1.0~5.0，默认 2.0；`sigma` 范围 0~1，默认 0.25；越界返回 400。两者只影响流匹配头采样，不算控制项，不参与 `auto` 解析和冲突检查 |
+| BR-100 | `task=voice_design` 必须按官方协议把 `instructions` 组装成结构化 caption（描述写入「风格」字段），`task=freeform` 才传纯文本指令；`voice_design`、`freeform`、`ip` 三种模式都必须填充零说话人槽（`use_zero_spk_emb`），与官方参考实现一致 |
+| BR-101 | Web UI 声音设计页提供「声音设计 / 自由指令」切换并显式传 `task`，不得依赖 `auto` 推断；两种模式的描述示例分开给出 |
+| BR-102 | Web UI 内置音色下拉必须覆盖官方 482 个音色（5 英文、48 中文、429 中文情绪变体），按分组展示并支持搜索；清单以官方 `voices.json` 为准 |
+| BR-103 | 声音克隆不得叠加 `emotion`、方言或 `speed`/`pitch`/`volume`：官方实现依赖 CAM++ 说话人嵌入，mlx-audio 尚未移植；本服务保持 400 拒绝，`docs/api.md` 说明原因，不做静默降级 |
+| BR-104 | Web UI 文本输入处必须提供 14 个副语言标签的完整说明（标签 + 中文含义），默认折叠；说明中注明标签需原样写进台词、保持英文半角方括号和大小写、放在希望发声的位置 |
 
 ---
 
@@ -1435,6 +1448,7 @@ uvicorn 事件循环（单线程）
 | 语言 | 是 | 默认自动，覆盖大多数场景 |
 | 音色或声音描述 | 是 | 随模式变化 |
 | 情绪、语速、音高、音量 | 否，高级设置折叠 | 默认值覆盖大多数场景 |
+| CFG scale、Sigma | 否，高级设置折叠 | 默认 2.0 / 0.25，与官方一致，通常不需要改 |
 | 参考音频与转录 | 否，仅克隆页 | 克隆时必填 |
 | 空闲阈值、端口、队列上限 | 否，环境变量或启动参数 | 部署时设定一次 |
 

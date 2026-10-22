@@ -57,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--speed", type=float, help="语速，0.5~2.0，默认 1.0")
     parser.add_argument("--pitch", type=int, help="音高，-12~12，默认 0")
     parser.add_argument("--volume", type=float, help="音量，0.5~2.0，默认 1.0")
+    parser.add_argument("--cfg", type=float, help="CFG scale，1.0~5.0，默认 2.0")
+    parser.add_argument("--sigma", type=float, help="采样噪声，0~1，默认 0.25")
     parser.add_argument("--seed", type=int, help="随机种子，默认随机")
     return parser
 
@@ -107,6 +109,8 @@ def _build_payload(args: argparse.Namespace, response_format: str) -> Dict[str, 
         "speed": args.speed,
         "pitch": args.pitch,
         "volume": args.volume,
+        "cfg": args.cfg,
+        "sigma": args.sigma,
         "seed": args.seed,
     }
     payload.update({key: value for key, value in optional.items() if value is not None})

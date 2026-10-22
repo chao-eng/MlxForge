@@ -133,6 +133,10 @@ MING_TTS_ALLOW_REMOTE=1 ./scripts/start_ming_tts.sh --host 0.0.0.0
 
 输入上限是 **1~1000 个 Unicode 码点**，按码点计数（不是字节，也不是 JavaScript 的 `text.length`），1000 是**临时上限**，长文本能力和耗时确认后冻结。v1 不支持流式音频，只输出 `wav` 或 `pcm`。
 
+Web UI 提供内置音色、声音克隆、声音设计三个页签。内置音色覆盖官方 482 个音色（5 个英文、48 个中文、429 个中文情绪变体）；声音设计页可在「声音设计」和「自由指令」之间切换，前者描述谁在说话，后者描述怎么说。台词里可以直接写 `[Laughter]`、`[Sigh]` 等 14 个副语言标签。CFG scale 和 Sigma 默认 2.0 / 0.25，与官方一致，一般不用改。
+
+声音克隆不能叠加情绪、方言或语速/音高/音量：官方依赖的 CAM++ 说话人嵌入尚未在 mlx-audio 中实现，本服务直接返回 400，不做静默降级。
+
 常用环境变量：`MING_TTS_IDLE_TIMEOUT`（默认 1200 秒，`0` 常驻）、`MING_TTS_MAX_QUEUE`（等待队列，默认 8）、`MING_TTS_QUEUE_TIMEOUT`（排队超时，默认 120 秒）、`MING_TTS_TEMP_DIR`（参考音频临时目录）、`MING_TTS_LOG_LEVEL`。接口字段见 [docs/api.md](docs/api.md)。
 
 ### 已实测机型

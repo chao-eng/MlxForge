@@ -166,6 +166,8 @@ data: [DONE]
 | `speed` | float | 否 | `1.0` | 0.5~2.0，实验能力 |
 | `pitch` | int | 否 | `0` | -12~12，实验能力 |
 | `volume` | float | 否 | `1.0` | 0.5~2.0，实验能力 |
+| `cfg` | float | 否 | `2.0` | 1.0~5.0，流匹配头的 CFG scale，越大越贴近描述 |
+| `sigma` | float | 否 | `0.25` | 0~1，流匹配头的采样噪声，越大变化越多 |
 | `emotion` | string | 否 | 空 | 1~32 个码点，实验能力 |
 | `instructions` | string | 否 | 空 | 1~500 个码点，映射到自由指令、声音设计或 IP 模式 |
 | `reference_audio` | string | 否 | 空 | base64 或 `data:<类型>;base64,<数据>`，必须与 `reference_text` 成对出现 |
@@ -176,7 +178,13 @@ data: [DONE]
 
 参考音频限制：WAV 或 FLAC，5~30 秒，采样率 16k~48kHz，单声道或双声道，解码后不超过 10MB。不合格返回 400。
 
-`voice` 只校验命名形式（`US_*`、`UK_*` 或纯中文名），无法判断「名字合法但音色不存在」；这类值会原样透传给模型，不报错。OpenAI 默认音色名（`alloy`、`echo`、`nova` 等）显式返回 400，不静默回退。
+`voice` 只校验命名形式（`US_*`、`UK_*` 或纯中文名），无法判断「名字合法但音色不存在」；这类值会原样透传给模型，不报错。OpenAI 默认音色名（`alloy`、`echo`、`nova` 等）显式返回 400，不静默回退。官方内置音色共 482 个（5 个英文、48 个中文、429 个中文情绪变体），完整清单见 `web/src/api/voices.ts`。
+
+`cfg` 和 `sigma` 只影响流匹配头的采样，不算「控制项」，不参与任务模式解析和冲突检查；改这两个值不会改变解析出的 `task`。
+
+`instructions` 在 `task=voice_design` 下按官方协议组装成结构化 caption（描述写入「风格」字段），在 `task=freeform` 下作为纯文本指令原样传入，两者训练输入不同，不要混用。
+
+台词里可以直接写副语言标签：`[Breathing]`、`[Cough]`、`[Sigh]`、`[Laughter]`、`[Surprise-ah]`、`[Surprise-oh]`、`[Dissatisfaction-hnn]`、`[Uhm]`、`[Confirmation-en]`、`[Question-ei]`、`[Question-ah]`、`[Question-en]`、`[Question-oh]`、`[Question-huh]`。
 
 #### 输入计数口径
 
@@ -215,6 +223,8 @@ data: [DONE]
 | 流式音频、MP3/Opus/AAC/FLAC 输出 | 不支持 | 返回 400 |
 
 情绪是自由字符串，建议值：中性、高兴、悲伤、愤怒、惊讶、恐惧、厌恶、温柔、严肃。服务端不校验具体词。
+
+声音克隆不能叠加 `emotion`、方言或 `speed`/`pitch`/`volume`：官方实现依赖 CAM++ 说话人嵌入，mlx-audio 尚未移植，本服务保持 400 拒绝，不做效果打折的静默降级。
 
 #### 响应头
 

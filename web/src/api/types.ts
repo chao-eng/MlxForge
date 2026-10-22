@@ -92,7 +92,21 @@ export interface SpeechRequest {
   reference_audio?: string
   reference_text?: string
   instructions?: string
+  task?: SpeechTask
+  cfg?: number
+  sigma?: number
 }
+
+export type SpeechTask =
+  | 'auto'
+  | 'tts'
+  | 'freeform'
+  | 'voice_design'
+  | 'multilingual'
+  | 'basic'
+  | 'emotion'
+  | 'dialect'
+  | 'ip'
 
 export interface SpeechResult {
   blob: Blob

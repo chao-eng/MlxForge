@@ -5,10 +5,13 @@ import type { SpeechRequest, SpeechResult } from '../api/types'
 import { useReferenceAudio } from './useReferenceAudio'
 
 export type SpeechMode = 'builtin' | 'clone' | 'design'
+export type DesignMode = 'voice_design' | 'freeform'
 
 const MAX_TEXT_CODEPOINTS = 1000
 const MAX_DESCRIPTION_CODEPOINTS = 500
 const MAX_REFERENCE_TEXT_CODEPOINTS = 500
+const DEFAULT_CFG = 2.0
+const DEFAULT_SIGMA = 0.25
 const REQUEST_TIMEOUT_MS = 180_000
 const TIMEOUT_MESSAGE = '等待时间较长，请检查服务状态。当前合成可能仍在后台继续'
 
@@ -24,6 +27,9 @@ export function useSpeech() {
   const language = ref('auto')
   const voice = ref('auto')
   const description = ref('')
+  const designMode = ref<DesignMode>('voice_design')
+  const cfg = ref(DEFAULT_CFG)
+  const sigma = ref(DEFAULT_SIGMA)
   const refText = ref('')
   const authorized = ref(false)
   const reference = useReferenceAudio()
@@ -69,6 +75,8 @@ export function useSpeech() {
       voice: voice.value.trim() || 'auto',
       language: language.value,
       response_format: 'wav',
+      cfg: cfg.value,
+      sigma: sigma.value,
     }
     if (mode.value === 'clone') {
       return {
@@ -79,7 +87,13 @@ export function useSpeech() {
       }
     }
     if (mode.value === 'design') {
-      return { ...base, voice: 'design', instructions: description.value.trim() }
+      // 声音设计和自由指令是两套训练输入，必须显式指定 task
+      return {
+        ...base,
+        voice: designMode.value === 'voice_design' ? 'design' : 'auto',
+        task: designMode.value,
+        instructions: description.value.trim(),
+      }
     }
     return base
   }
@@ -150,6 +164,9 @@ export function useSpeech() {
     language,
     voice,
     description,
+    designMode,
+    cfg,
+    sigma,
     refText,
     authorized,
     reference,
