@@ -149,8 +149,13 @@ case "$HOST" in
   127.0.0.1|localhost|::1) ;;
   *)
     if [ "${MING_TTS_ALLOW_REMOTE:-}" != "1" ]; then
+      # 提示里带上本次实际用的参数，复制就能用，不会退回默认端口或前台模式
+      HINT_ARGS="--host ${HOST} --port ${PORT}"
+      if [ "$DAEMON" -eq 1 ]; then
+        HINT_ARGS="${HINT_ARGS} --daemon"
+      fi
       log_error "拒绝监听 ${HOST}：服务没有鉴权，开放远程访问必须显式授权"
-      echo "确认网络环境后这样启动：MING_TTS_ALLOW_REMOTE=1 ./scripts/start_ming_tts.sh --host ${HOST}" >&2
+      echo "确认网络环境后这样启动：MING_TTS_ALLOW_REMOTE=1 ./scripts/start_ming_tts.sh ${HINT_ARGS}" >&2
       exit 1
     fi
     echo "警告：服务没有鉴权，当前监听 ${HOST}，同网段设备都可以访问。" >&2
