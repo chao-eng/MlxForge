@@ -32,8 +32,14 @@ const MING_LABELS: Record<HealthState, string> = {
 
 type PageKey = 'speech' | 'translate'
 
-const page = ref<PageKey>('speech')
-const pageChosen = ref(false)
+// 服务端启动单模型时会把 / 重定向到 ?page=tts 或 ?page=translate，
+// 带参数进入即锁定页面，避免首屏先渲染默认页再跳转
+const PAGE_PARAMS: Record<string, PageKey> = { tts: 'speech', translate: 'translate' }
+const pageParam = new URLSearchParams(window.location.search).get('page')
+const forcedPage = ref<PageKey | null>(pageParam ? PAGE_PARAMS[pageParam] ?? null : null)
+
+const page = ref<PageKey>(forcedPage.value ?? 'speech')
+const pageChosen = ref(forcedPage.value !== null)
 const availability = ref<ModelAvailability>({ hyMt2: false, ming: false })
 const healthState = ref<HealthState | null>(null)
 const reachable = ref(true)
@@ -106,7 +112,7 @@ onBeforeUnmount(() => {
       <ServiceStatus :state="healthState" :reachable="reachable" :labels="labels" />
     </header>
 
-    <t-radio-group v-model="page" variant="default-filled">
+    <t-radio-group v-if="forcedPage === null" v-model="page" variant="default-filled">
       <t-radio-button value="speech">语音合成</t-radio-button>
       <t-radio-button value="translate">文本翻译</t-radio-button>
     </t-radio-group>

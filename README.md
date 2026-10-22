@@ -73,7 +73,7 @@ GET  /health
 
 两个运行时各自独立，默认都监听 `127.0.0.1:8000`，同一时间跑一个；同时使用时给其中一个加 `--port`。
 
-Web UI 两个模型共用，构建一次即可。用 pnpm，构建产物在 `web/dist`，服务启动时自动挂到 `/`。
+Web UI 两个模型共用，构建一次即可。用 pnpm，构建产物在 `web/dist`，服务启动时自动挂到 `/`。单模型启动时 `/` 会 307 跳转到对应页面（Ming 是 `/?page=tts`，Hy-MT2 是 `/?page=translate`），带 `page` 参数进入会锁定该页面并隐藏另一个页签；不带参数时按 `/v1/models` 自动判断。
 
 ```bash
 cd web && pnpm install && pnpm build && cd ..

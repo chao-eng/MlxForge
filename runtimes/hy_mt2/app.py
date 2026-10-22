@@ -18,7 +18,13 @@ from typing import Any, AsyncIterator, List, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from pydantic import BaseModel, Field, field_validator
 from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -480,7 +486,11 @@ def create_app(
             app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
         @app.get("/", include_in_schema=False)
-        async def index() -> FileResponse:
+        async def index(request: Request) -> Response:
+            # 单模型启动时直接把入口固定到文本翻译；已带 page 参数时直接返回页面，
+            # 否则会重定向到自己形成死循环
+            if "page" not in request.query_params:
+                return RedirectResponse(url="/?page=translate", status_code=307)
             return FileResponse(os.path.join(WEB_DIST, "index.html"))
     else:
         logger.warning("未找到 %s，Web UI 不可用，请先在 web/ 执行 pnpm build", WEB_DIST)

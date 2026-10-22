@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.staticfiles import StaticFiles
 
@@ -227,7 +227,11 @@ def _mount_web_ui(app: FastAPI) -> None:
             app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
         @app.get("/", include_in_schema=False)
-        async def index() -> FileResponse:
+        async def index(request: Request) -> Response:
+            # 单模型启动时直接把入口固定到语音合成，避免前端先渲染默认页再跳转；
+            # 已带 page 参数时必须直接返回页面，否则会重定向到自己形成死循环
+            if "page" not in request.query_params:
+                return RedirectResponse(url="/?page=tts", status_code=307)
             return FileResponse(os.path.join(WEB_DIST, "index.html"))
 
         return
