@@ -101,6 +101,15 @@ envs/hy-mt2/bin/python -m runtimes.hy_mt2.cli --text "Hello world." --target 中
 
 脚本默认监听 `127.0.0.1:8000`，可用 `--host`、`--port` 覆盖。端口被占用会直接报错，不自动换端口。默认只监听本机；需要局域网访问时把 host 改成 `0.0.0.0`，服务没有鉴权，开放前先确认网络环境。
 
+要挂在后台、关掉终端也不退出，加 `--daemon`。
+
+```bash
+./scripts/start_hy_mt2.sh --daemon
+./scripts/stop_hy_mt2.sh
+```
+
+日志追加到 `logs/hy-mt2.log`，PID 写在 `run/hy-mt2.pid`，两个目录都不入库。启动过程（时间、模式、host、端口、PID、解释器版本）带时间戳写入同一个日志，前台启动也留一份，端口占用、环境缺失这类失败同样落盘。这种方式不受终端生命周期影响，但注销或重启后要手动再启动一次。
+
 模型在第一次请求时加载，`HY_MT2_IDLE_TIMEOUT` 控制空闲多少秒后释放，默认 1200 秒，`0` 表示常驻。MLX 缓存池上限默认 512MB，可用 `--mlx-cache-limit-mb` 调整，`0` 表示禁用缓存。
 
 ### Ming-3.0-tts
@@ -130,6 +139,13 @@ MING_TTS_ALLOW_REMOTE=1 ./scripts/start_ming_tts.sh --host 0.0.0.0
 ```
 
 服务没有鉴权，同网段设备都能调用合成接口和上传参考音频，开放前先确认网络环境。
+
+后台运行同样用 `--daemon`，日志在 `logs/ming-tts.log`，PID 在 `run/ming-tts.pid`，启动时间、端口、PID 和失败原因都会带时间戳写进日志。
+
+```bash
+./scripts/start_ming_tts.sh --daemon
+./scripts/stop_ming_tts.sh
+```
 
 输入上限是 **1~1000 个 Unicode 码点**，按码点计数（不是字节，也不是 JavaScript 的 `text.length`），1000 是**临时上限**，长文本能力和耗时确认后冻结。v1 不支持流式音频，只输出 `wav` 或 `pcm`。
 
