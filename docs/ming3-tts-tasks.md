@@ -165,7 +165,7 @@
   - 结论：以 `MING_TTS_LOG_LEVEL=DEBUG` 提交含特征文本的克隆请求，日志只出现「文本 21 码点，参考音频 有」，全文检索无输入文本与 base64
 - [x] **T-36** Host 头校验与远程门禁（含 `0.0.0.0` 规则）
   - 依赖：T-15 ｜ 依据：BR-69、§6.3
-  - 结论：`Host: evil.example`、`Host: 0.0.0.0` 与本机机器名均 400 `invalid_request_error`，`localhost:8766` 与回环 IP 放行；监听 `127.0.0.1` 时机器名不属于白名单，符合 BR-69
+  - 结论：`Host: evil.example` 与 `Host: 0.0.0.0` 返回 400 `invalid_request_error`；`localhost`、回环 IP、本机各网卡 IPv4（含 utun）和主机名（`bujic`、`bujic.local`）放行。主机名和网卡地址都要枚举，否则用第二块网卡或 VPN 地址访问时会被误拒
 
 ---
 

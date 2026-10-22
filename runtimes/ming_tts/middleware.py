@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import fcntl
 import ipaddress
 import json
 import socket
+import struct
 from typing import Any, Callable, Set
 
 from starlette.datastructures import Headers
@@ -68,6 +70,29 @@ class BodyLimitMiddleware:
         await send({"type": "http.response.body", "body": body})
 
 
+def _interface_addresses() -> Set[str]:
+    """枚举每块网卡的 IPv4 地址。
+
+    主机名解析通常只覆盖主网卡，第二块网卡、VPN、Tailscale 这类地址拿不到，
+    用这些地址访问时 Host 会被误判成外来请求。
+    """
+    addresses: Set[str] = set()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            for _, name in socket.if_nameindex():
+                # macOS 的 SIOCGIFADDR 带方向位和结构体大小，不是 Linux 的 0x8915；
+                # ifreq 固定 32 字节，IPv4 地址在返回缓冲区偏移 20
+                request = struct.pack("16s16s", name.encode("utf-8")[:15], b"")
+                try:
+                    packed = fcntl.ioctl(sock.fileno(), 0xC0206921, request)
+                except OSError:
+                    continue
+                addresses.add(socket.inet_ntoa(packed[20:24]))
+    except (ImportError, OSError):
+        pass
+    return addresses
+
+
 def _local_addresses() -> Set[str]:
     """本机回环与局域网地址；用于 0.0.0.0 监听时的 Host 白名单。"""
     addresses = {"127.0.0.1", "::1", "localhost"}
@@ -79,7 +104,14 @@ def _local_addresses() -> Set[str]:
             addresses.add(address)
     except OSError:
         pass
-    return addresses
+    return addresses | _interface_addresses()
+
+
+def _local_names() -> Set[str]:
+    """本机主机名；局域网用 Mac-mini.local 这类 mDNS 名字访问时也要放行。"""
+    hostname = socket.gethostname().strip().lower()
+    short = hostname.split(".")[0]
+    return {"localhost", hostname, short, f"{short}.local"}
 
 
 def _strip_port(host: str) -> str:
@@ -98,9 +130,15 @@ def _strip_port(host: str) -> str:
 class HostValidationMiddleware:
     """只接受回环地址与本机地址，防止 DNS rebinding（BR-69）。"""
 
-    def __init__(self, app: Any, addresses: Set[str] | None = None) -> None:
+    def __init__(
+        self,
+        app: Any,
+        addresses: Set[str] | None = None,
+        names: Set[str] | None = None,
+    ) -> None:
         self.app = app
         self.addresses = addresses or _local_addresses()
+        self.names = names or _local_names()
 
     async def __call__(self, scope: Any, receive: Callable, send: Callable) -> None:
         if scope["type"] != "http":
@@ -123,7 +161,7 @@ class HostValidationMiddleware:
         try:
             address = ipaddress.ip_address(value)
         except ValueError:
-            return value == "localhost"
+            return value in self.names
         return address.is_loopback or value in self.addresses
 
     async def _reject(self, send: Callable) -> None:
