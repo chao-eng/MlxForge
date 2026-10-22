@@ -139,7 +139,7 @@ fi
 log "端口 ${PORT} 可用"
 
 if [ "$HOST" != "127.0.0.1" ] && [ "$HOST" != "localhost" ]; then
-  echo "警告：服务没有鉴权，当前监听 $HOST，同网段设备都可以访问。" >&2
+  echo "警告：服务没有鉴权，当前监听 ${HOST}，同网段设备都可以访问。" >&2
 fi
 
 cd "$ROOT"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
 import { TARGET_LANGUAGES, useTranslation } from '../composables/useTranslation'
+import { copyToClipboard } from '../composables/useClipboard'
 
 defineProps<{
   serviceAvailable: boolean
@@ -46,7 +47,7 @@ async function handleCopy(): Promise<void> {
 
   clearCopyTimer()
   try {
-    await navigator.clipboard.writeText(translatedText.value)
+    await copyToClipboard(translatedText.value)
     copyState.value = 'copied'
     copyTimer = setTimeout(() => {
       copyState.value = 'idle'
