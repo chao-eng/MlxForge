@@ -69,6 +69,19 @@ GET  /health
 - `uv`
 - 磁盘空间按模型算：Hy-MT2-1.8B-4bit 权重约 1 GB，Ming-3.0-tts-0.5B-8bit 权重约 1.57 GB，另需留出各自独立环境的依赖空间
 
+`uv` 用官方脚本安装，脚本会自动识别芯片架构（Apple Silicon 或 Intel），把 `uv` 和 `uvx` 装到 `~/.local/bin`：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+装完让当前 Shell 重新读一次环境变量，再确认版本：
+
+```bash
+source ~/.zshrc        # bash 用 source ~/.bash_profile
+uv --version
+```
+
 ## 本地运行
 
 两个运行时各自独立，默认都监听 `127.0.0.1:8000`，同一时间跑一个；同时使用时给其中一个加 `--port`。
