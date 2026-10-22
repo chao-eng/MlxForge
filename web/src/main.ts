@@ -16,6 +16,7 @@ import {
   Tabs,
   Tag,
   Textarea,
+  Tooltip,
   Upload,
 } from 'tdesign-vue-next'
 import 'tdesign-vue-next/es/style/index.css'
@@ -42,5 +43,6 @@ app.use(CollapsePanel)
 app.use(Dialog)
 app.use(InputNumber)
 app.use(Link)
+app.use(Tooltip)
 
 app.mount('#app')

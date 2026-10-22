@@ -3,6 +3,7 @@ import type {
   ErrorResponse,
   HealthResponse,
   HealthState,
+  MemoryInfo,
 } from './types'
 
 const HEALTH_STATES: readonly HealthState[] = [
@@ -13,6 +14,15 @@ const HEALTH_STATES: readonly HealthState[] = [
   'unloading',
   'failed',
 ]
+
+const MEMORY_FIELDS = [
+  'mlx_active_mb',
+  'mlx_peak_mb',
+  'mlx_cache_mb',
+  'footprint_mb',
+  'system_used_mb',
+  'system_total_mb',
+] as const
 
 export class ApiError extends Error {
   readonly type: string
@@ -71,6 +81,11 @@ export function isHealthState(value: unknown): value is HealthState {
   return typeof value === 'string' && HEALTH_STATES.some((state) => state === value)
 }
 
+export function isMemoryInfo(value: unknown): value is MemoryInfo {
+  if (!isRecord(value)) return false
+  return MEMORY_FIELDS.every((field) => typeof value[field] === 'number')
+}
+
 export function isHealthResponse(value: unknown): value is HealthResponse {
   if (!isRecord(value)) return false
   return (
@@ -81,7 +96,8 @@ export function isHealthResponse(value: unknown): value is HealthResponse {
     typeof value.idle_timeout_seconds === 'number' &&
     (value.last_error === undefined ||
       value.last_error === null ||
-      typeof value.last_error === 'string')
+      typeof value.last_error === 'string') &&
+    (value.memory === undefined || isMemoryInfo(value.memory))
   )
 }
 

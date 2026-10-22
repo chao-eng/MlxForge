@@ -93,7 +93,15 @@ data: [DONE]
   "state": "ready",
   "model_loaded": true,
   "idle_seconds": 12.3,
-  "idle_timeout_seconds": 1200
+  "idle_timeout_seconds": 1200,
+  "memory": {
+    "mlx_active_mb": 1180.5,
+    "mlx_peak_mb": 1420.0,
+    "mlx_cache_mb": 96.2,
+    "footprint_mb": 1830.4,
+    "system_used_mb": 9876.5,
+    "system_total_mb": 16384.0
+  }
 }
 ```
 
@@ -105,6 +113,7 @@ data: [DONE]
 | `idle_seconds` | 距最后一次生成完成的秒数 |
 | `idle_timeout_seconds` | 空闲阈值，`0` 表示常驻 |
 | `last_error` | 仅 `failed` 时出现，中文说明，不含堆栈 |
+| `memory` | 内存快照，单位 MB；`mlx_*` 来自 MLX，`footprint_mb` 为进程物理内存足迹（与活动监视器「内存」列一致，含 MLX 的 GPU 分配），`system_*` 为整机内存 |
 
 ### 错误
 
@@ -286,7 +295,15 @@ response.write_to_file("speech.wav")
   "model_loaded": true,
   "idle_seconds": 12.3,
   "idle_timeout_seconds": 1200,
-  "sample_rate": 44100
+  "sample_rate": 44100,
+  "memory": {
+    "mlx_active_mb": 1284.0,
+    "mlx_peak_mb": 1602.5,
+    "mlx_cache_mb": 128.4,
+    "footprint_mb": 2048.6,
+    "system_used_mb": 9876.5,
+    "system_total_mb": 16384.0
+  }
 }
 ```
 
@@ -299,6 +316,7 @@ response.write_to_file("speech.wav")
 | `idle_timeout_seconds` | 空闲阈值，`0` 表示常驻 |
 | `sample_rate` | 固定 `44100` |
 | `last_error` | 仅失败时出现，中文说明，不含堆栈 |
+| `memory` | 内存快照，单位 MB；`mlx_*` 来自 MLX，`footprint_mb` 为进程物理内存足迹（与活动监视器「内存」列一致，含 MLX 的 GPU 分配），`system_*` 为整机内存 |
 
 ### 错误
 
@@ -330,3 +348,4 @@ response.write_to_file("speech.wav")
 - 默认只监听 `127.0.0.1`，开放局域网必须同时设置 `MING_TTS_ALLOW_REMOTE=1`，否则启动失败。服务没有鉴权，同网段设备都能调用。
 - 收到 SIGTERM 后排队请求返回 503，在途合成最多等待 120 秒。
 - 模型空闲默认 1200 秒后卸载，`MING_TTS_IDLE_TIMEOUT` 可调，`0` 表示常驻。
+- MLX 缓存池上限默认 512MB，`MING_TTS_MLX_CACHE_LIMIT_MB` 或启动参数 `--mlx-cache-limit-mb` 可调，`0` 表示禁用缓存。

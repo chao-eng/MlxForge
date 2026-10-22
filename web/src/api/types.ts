@@ -58,6 +58,15 @@ export type HealthState =
   | 'unloading'
   | 'failed'
 
+export interface MemoryInfo {
+  mlx_active_mb: number
+  mlx_peak_mb: number
+  mlx_cache_mb: number
+  footprint_mb: number
+  system_used_mb: number
+  system_total_mb: number
+}
+
 export interface HealthResponse {
   status: 'ok' | 'degraded'
   state: HealthState
@@ -66,6 +75,7 @@ export interface HealthResponse {
   idle_timeout_seconds: number
   last_error?: string | null
   sample_rate?: number
+  memory?: MemoryInfo
 }
 
 export interface ModelInfo {

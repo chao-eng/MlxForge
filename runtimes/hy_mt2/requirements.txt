@@ -13,3 +13,4 @@ modelscope==1.39.0
 huggingface-hub>=1.5.0
 
 numpy==2.2.4
+psutil==7.2.2

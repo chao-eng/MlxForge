@@ -101,7 +101,7 @@ envs/hy-mt2/bin/python -m runtimes.hy_mt2.cli --text "Hello world." --target 中
 
 脚本默认监听 `127.0.0.1:8000`，可用 `--host`、`--port` 覆盖。端口被占用会直接报错，不自动换端口。默认只监听本机；需要局域网访问时把 host 改成 `0.0.0.0`，服务没有鉴权，开放前先确认网络环境。
 
-模型在第一次请求时加载，`HY_MT2_IDLE_TIMEOUT` 控制空闲多少秒后释放，默认 1200 秒，`0` 表示常驻。
+模型在第一次请求时加载，`HY_MT2_IDLE_TIMEOUT` 控制空闲多少秒后释放，默认 1200 秒，`0` 表示常驻。MLX 缓存池上限默认 512MB，可用 `--mlx-cache-limit-mb` 调整，`0` 表示禁用缓存。
 
 ### Ming-3.0-tts
 
@@ -137,7 +137,7 @@ Web UI 提供内置音色、声音克隆、声音设计三个页签。内置音�
 
 声音克隆不能叠加情绪、方言或语速/音高/音量：官方依赖的 CAM++ 说话人嵌入尚未在 mlx-audio 中实现，本服务直接返回 400，不做静默降级。
 
-常用环境变量：`MING_TTS_IDLE_TIMEOUT`（默认 1200 秒，`0` 常驻）、`MING_TTS_MAX_QUEUE`（等待队列，默认 8）、`MING_TTS_QUEUE_TIMEOUT`（排队超时，默认 120 秒）、`MING_TTS_TEMP_DIR`（参考音频临时目录）、`MING_TTS_LOG_LEVEL`。接口字段见 [docs/api.md](docs/api.md)。
+常用环境变量：`MING_TTS_IDLE_TIMEOUT`（默认 1200 秒，`0` 常驻）、`MING_TTS_MAX_QUEUE`（等待队列，默认 8）、`MING_TTS_QUEUE_TIMEOUT`（排队超时，默认 120 秒）、`MING_TTS_MLX_CACHE_LIMIT_MB`（MLX 缓存上限，默认 512，`0` 禁用）、`MING_TTS_TEMP_DIR`（参考音频临时目录）、`MING_TTS_LOG_LEVEL`。接口字段见 [docs/api.md](docs/api.md)。
 
 ### 已实测机型
 

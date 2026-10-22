@@ -5,9 +5,11 @@
 
 from __future__ import annotations
 
+import ctypes
 import gc
 import json
 import logging
+import os
 import threading
 import time
 from collections import deque
@@ -18,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable, Deque, Optional
 
 import mlx.core as mx
+import psutil
 from mlx_audio.tts.utils import load_model
 
 # mlx_audio 的 bailingmm 包会把可选的 onnx 导入异常存进模块全局，该异常的
@@ -27,6 +30,83 @@ from mlx_audio.tts.utils import load_model
 import_module("mlx_audio.tts.models.bailingmm")
 
 logger = logging.getLogger(__name__)
+
+
+class _RusageInfoV4(ctypes.Structure):
+    """libproc 的 rusage_info_v4，字段必须与 sys/resource.h 完全一致。
+
+    proc_pid_rusage 按 flavor 对应的完整结构体写入，少声明字段会越界写内存，
+    进程会在后续请求中直接崩溃。
+    """
+
+    _fields_ = [
+        ("ri_uuid", ctypes.c_uint8 * 16),
+        ("ri_user_time", ctypes.c_uint64),
+        ("ri_system_time", ctypes.c_uint64),
+        ("ri_pkg_idle_wkups", ctypes.c_uint64),
+        ("ri_interrupt_wkups", ctypes.c_uint64),
+        ("ri_pageins", ctypes.c_uint64),
+        ("ri_wired_size", ctypes.c_uint64),
+        ("ri_resident_size", ctypes.c_uint64),
+        ("ri_phys_footprint", ctypes.c_uint64),
+        ("ri_proc_start_abstime", ctypes.c_uint64),
+        ("ri_proc_exit_abstime", ctypes.c_uint64),
+        ("ri_child_user_time", ctypes.c_uint64),
+        ("ri_child_system_time", ctypes.c_uint64),
+        ("ri_child_pkg_idle_wkups", ctypes.c_uint64),
+        ("ri_child_interrupt_wkups", ctypes.c_uint64),
+        ("ri_child_pageins", ctypes.c_uint64),
+        ("ri_child_elapsed_abstime", ctypes.c_uint64),
+        ("ri_diskio_bytesread", ctypes.c_uint64),
+        ("ri_diskio_byteswritten", ctypes.c_uint64),
+        ("ri_cpu_time_qos_default", ctypes.c_uint64),
+        ("ri_cpu_time_qos_maintenance", ctypes.c_uint64),
+        ("ri_cpu_time_qos_background", ctypes.c_uint64),
+        ("ri_cpu_time_qos_utility", ctypes.c_uint64),
+        ("ri_cpu_time_qos_legacy", ctypes.c_uint64),
+        ("ri_cpu_time_qos_user_initiated", ctypes.c_uint64),
+        ("ri_cpu_time_qos_user_interactive", ctypes.c_uint64),
+        ("ri_billed_system_time", ctypes.c_uint64),
+        ("ri_serviced_system_time", ctypes.c_uint64),
+        ("ri_logical_writes", ctypes.c_uint64),
+        ("ri_lifetime_max_phys_footprint", ctypes.c_uint64),
+        ("ri_instructions", ctypes.c_uint64),
+        ("ri_cycles", ctypes.c_uint64),
+        ("ri_billed_energy", ctypes.c_uint64),
+        ("ri_serviced_energy", ctypes.c_uint64),
+        ("ri_interval_max_phys_footprint", ctypes.c_uint64),
+        ("ri_runnable_time", ctypes.c_uint64),
+    ]
+
+
+_LIBPROC = ctypes.CDLL("/usr/lib/libproc.dylib")
+_LIBPROC.proc_pid_rusage.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+_LIBPROC.proc_pid_rusage.restype = ctypes.c_int
+
+
+def _phys_footprint_bytes() -> int:
+    """进程物理内存足迹，口径与活动监视器的「内存」列一致。
+
+    psutil 的 rss 不含 Metal/GPU 的 IOAccelerator 分配，模型加载后会明显偏小，
+    所以直接读 libproc；读取失败时才退回 rss。
+    """
+    info = _RusageInfoV4()
+    if _LIBPROC.proc_pid_rusage(os.getpid(), 4, ctypes.byref(info)) != 0:
+        return psutil.Process().memory_info().rss
+    return int(info.ri_phys_footprint)
+
+
+def memory_snapshot() -> dict[str, float]:
+    """`/health` 用的内存快照：MLX 占用、进程物理内存与整机占用分开报告。"""
+    system = psutil.virtual_memory()
+    return {
+        "mlx_active_mb": round(mx.get_active_memory() / 1048576, 1),
+        "mlx_peak_mb": round(mx.get_peak_memory() / 1048576, 1),
+        "mlx_cache_mb": round(mx.get_cache_memory() / 1048576, 1),
+        "footprint_mb": round(_phys_footprint_bytes() / 1048576, 1),
+        "system_used_mb": round((system.total - system.available) / 1048576, 1),
+        "system_total_mb": round(system.total / 1048576, 1),
+    }
 
 STATE_UNLOADED = "unloaded"
 STATE_LOADING = "loading"
@@ -80,6 +160,7 @@ class ModelManager:
         idle_timeout: int = 1200,
         max_queue: int = 8,
         queue_timeout: float = 120.0,
+        cache_limit_mb: int = 512,
     ) -> None:
         if idle_timeout < 0:
             raise ValueError("空闲阈值不能为负数")
@@ -87,11 +168,16 @@ class ModelManager:
             raise ValueError("队列上限不能为负数")
         if queue_timeout <= 0:
             raise ValueError("排队上限必须大于 0")
+        if cache_limit_mb < 0:
+            raise ValueError("MLX 缓存上限不能为负数")
 
         self.model_path = model_path
         self.idle_timeout = idle_timeout
         self.max_queue = max_queue
         self.queue_timeout = queue_timeout
+        self.cache_limit_mb = cache_limit_mb
+        # 缓存上限按进程生效，超限的缓冲在下次分配前归还系统；0 表示禁用缓存
+        mx.set_cache_limit(cache_limit_mb * 1048576)
 
         self._model: Any = None
         self._config: Optional[dict[str, Any]] = None
@@ -153,6 +239,7 @@ class ModelManager:
                 "idle_seconds": round(time.time() - self._last_active, 1),
                 "idle_timeout_seconds": self.idle_timeout,
                 "sample_rate": SAMPLE_RATE,
+                "memory": memory_snapshot(),
             }
             if error:
                 data["last_error"] = error
@@ -292,6 +379,10 @@ class ModelManager:
                     if self._state == STATE_GENERATING:
                         self._state = STATE_READY
                     self._cond.notify_all()
+                # 每次合成都会产生尺寸各异的新缓冲，MLX 缓存池会随请求次数持续变大。
+                # 这里无条件清空而不是等队列空闲：持续有请求时队列永远不空，
+                # 等下去等于不清理；实测每次清空后单次耗时无明显变化。
+                mx.clear_cache()
 
     def _load_model(self) -> None:
         """只在 worker 线程调用，保证同一时刻只有一次加载。"""

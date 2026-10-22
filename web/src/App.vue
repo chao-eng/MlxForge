@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getHealth } from './api/client'
 import { getModelAvailability } from './api/models'
 import type { ModelAvailability } from './api/models'
-import type { HealthState } from './api/types'
+import type { HealthState, MemoryInfo } from './api/types'
 import ServiceStatus from './components/ServiceStatus.vue'
 import SpeechPanel from './components/SpeechPanel.vue'
 import TranslatePanel from './components/TranslatePanel.vue'
@@ -42,6 +42,7 @@ const page = ref<PageKey>(forcedPage.value ?? 'speech')
 const pageChosen = ref(forcedPage.value !== null)
 const availability = ref<ModelAvailability>({ hyMt2: false, ming: false })
 const healthState = ref<HealthState | null>(null)
+const healthMemory = ref<MemoryInfo | null>(null)
 const reachable = ref(true)
 const failures = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -71,6 +72,7 @@ async function refresh(): Promise<void> {
     const [models, health] = await Promise.all([getModelAvailability(), getHealth()])
     availability.value = models
     healthState.value = health.state
+    healthMemory.value = health.memory ?? null
     failures.value = 0
     reachable.value = true
     if (!pageChosen.value) {
@@ -82,6 +84,7 @@ async function refresh(): Promise<void> {
     failures.value += 1
     if (failures.value >= UNREACHABLE_THRESHOLD) {
       healthState.value = null
+      healthMemory.value = null
       reachable.value = false
     }
   }
@@ -109,7 +112,12 @@ onBeforeUnmount(() => {
         <h1 class="app-title">{{ title }}</h1>
         <p class="app-subtitle">运行在 Apple Silicon 上的本地模型服务</p>
       </div>
-      <ServiceStatus :state="healthState" :reachable="reachable" :labels="labels" />
+      <ServiceStatus
+        :state="healthState"
+        :reachable="reachable"
+        :labels="labels"
+        :memory="healthMemory"
+      />
     </header>
 
     <t-radio-group v-if="forcedPage === null" v-model="page" variant="default-filled">

@@ -43,6 +43,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 DEFAULT_MODEL_PATH = os.path.join(REPO_ROOT, "models", "hy-mt2", "4bit")
 DEFAULT_IDLE_TIMEOUT = 1200
 DEFAULT_MAX_QUEUE = 8
+DEFAULT_MLX_CACHE_LIMIT_MB = 512
 MAX_BODY_BYTES = 1024 * 1024
 SHUTDOWN_GRACE_SECONDS = 30.0
 WEB_DIST = os.path.join(REPO_ROOT, "web", "dist")
@@ -292,10 +293,14 @@ def create_app(
         else int(os.environ.get("HY_MT2_IDLE_TIMEOUT", DEFAULT_IDLE_TIMEOUT))
     )
     max_queue = int(os.environ.get("HY_MT2_MAX_QUEUE", DEFAULT_MAX_QUEUE))
+    cache_limit_mb = int(
+        os.environ.get("HY_MT2_MLX_CACHE_LIMIT_MB", DEFAULT_MLX_CACHE_LIMIT_MB)
+    )
     manager = ModelManager(
         model_path=model_path or os.environ.get("HY_MT2_MODEL_PATH", DEFAULT_MODEL_PATH),
         idle_timeout=resolved_timeout,
         max_queue=max_queue,
+        cache_limit_mb=cache_limit_mb,
     )
 
     @asynccontextmanager

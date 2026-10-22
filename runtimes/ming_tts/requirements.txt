@@ -29,6 +29,7 @@ modelscope==1.39.0
 modelscope-hub==0.4.6
 numpy==2.4.6
 packaging==26.3
+psutil==7.2.2
 pycparser==3.11
 pydantic==2.14.1
 pydantic-core==2.50.1

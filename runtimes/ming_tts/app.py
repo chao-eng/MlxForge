@@ -53,6 +53,7 @@ WEB_DIST = os.path.join(REPO_ROOT, "web", "dist")
 DEFAULT_IDLE_TIMEOUT = 1200
 DEFAULT_MAX_QUEUE = 8
 DEFAULT_QUEUE_TIMEOUT = 120
+DEFAULT_MLX_CACHE_LIMIT_MB = 512
 DEFAULT_LOG_LEVEL = "INFO"
 SHUTDOWN_GRACE_SECONDS = 120.0
 # 客户端断开轮询间隔，兼顾响应及时性与空转开销
@@ -68,6 +69,9 @@ class Settings:
         self.queue_timeout = _env_float(
             "MING_TTS_QUEUE_TIMEOUT", DEFAULT_QUEUE_TIMEOUT
         )
+        self.mlx_cache_limit_mb = _env_int(
+            "MING_TTS_MLX_CACHE_LIMIT_MB", DEFAULT_MLX_CACHE_LIMIT_MB
+        )
         self.temp_dir = os.environ.get(
             "MING_TTS_TEMP_DIR", os.path.join(tempfile.gettempdir(), "ming-tts")
         )
@@ -79,6 +83,8 @@ class Settings:
             raise RuntimeError("MING_TTS_MAX_QUEUE 不能为负数")
         if self.queue_timeout <= 0:
             raise RuntimeError("MING_TTS_QUEUE_TIMEOUT 必须大于 0")
+        if self.mlx_cache_limit_mb < 0:
+            raise RuntimeError("MING_TTS_MLX_CACHE_LIMIT_MB 不能为负数")
 
 
 def _env_int(name: str, default: int) -> int:
@@ -122,6 +128,7 @@ def create_app() -> FastAPI:
         idle_timeout=settings.idle_timeout,
         max_queue=settings.max_queue,
         queue_timeout=settings.queue_timeout,
+        cache_limit_mb=settings.mlx_cache_limit_mb,
     )
     store = TempAudioStore(settings.temp_dir)
     store.prepare()
@@ -130,10 +137,11 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
         logger.info(
-            "服务启动：模型目录 %s，空闲阈值 %s 秒，等待上限 %s",
+            "服务启动：模型目录 %s，空闲阈值 %s 秒，等待上限 %s，MLX 缓存上限 %s MB",
             settings.model_path,
             settings.idle_timeout,
             settings.max_queue,
+            settings.mlx_cache_limit_mb,
         )
         yield
         await run_in_threadpool(manager.shutdown, SHUTDOWN_GRACE_SECONDS)

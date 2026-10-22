@@ -524,6 +524,7 @@ X-Audio-Format: wav
 | idle_seconds | 空闲秒数 | float | 距最后一次合成完成的时间；进程启动后从未合成时，从进程启动完成时刻起算 |
 | idle_timeout_seconds | 空闲阈值 | int | `0` 表示常驻 |
 | sample_rate | 输出采样率 | int | 固定 `44100` |
+| memory | 内存快照 | object | 单位 MB，含 `mlx_active_mb`、`mlx_peak_mb`、`mlx_cache_mb`、`footprint_mb`、`system_used_mb`、`system_total_mb` |
 | last_error | 最近错误类型 | string/null | 仅 `failed` 或 `degraded` 时出现，不含堆栈 |
 
 **接口说明**：`GET /v1/models`、`GET /health`。
@@ -884,6 +885,7 @@ uvicorn 事件循环（单线程）
 | --- | --- |
 | 模型页签 | 页面顶部在「语音合成」和「文本翻译」之间切换，两套页面同时保留；当前服务运行哪个模型由 `/v1/models` 判定，未运行模型的页签仍可打开，但生成按钮禁用并提示不可用；选择不写入本地存储，刷新后重新判定 |
 | 状态徽标 | 轮询 `/health`，按 `state` 展示六个状态，文案与 §9.5 完全一致：`unloaded` 已就绪（首次生成需准备模型）、`loading` 正在准备模型、`ready` 已就绪、`generating` 正在合成、`unloading` 正在释放内存、`failed` 模型加载失败 |
+| 内存占用 | 状态徽标右侧显示程序总占用（进程物理内存足迹，与活动监视器一致）和 MLX 活跃内存，悬停展示程序总占用、MLX 峰值与缓存；数据取自 `/health` 的 `memory`，不单独发请求 |
 | 模式页签 | 内置音色、声音克隆、声音设计，切换时保留文本，隐藏不适用字段 |
 | 文本输入框 | 多行，自动增高，占位文案「输入要朗读的内容，数字请写成文字」 |
 | 字数提示 | 显示当前码点数和 1000 上限，超限变红并禁用生成；前端使用 `Array.from(text).length` 计数，与后端统一按 Unicode 码点，不能用 `text.length` |
@@ -1193,6 +1195,7 @@ uvicorn 事件循环（单线程）
 | `MING_TTS_IDLE_TIMEOUT` | `1200` | 覆盖空闲阈值，单位秒 |
 | `MING_TTS_MAX_QUEUE` | `8` | 等待队列上限，不含在途任务 |
 | `MING_TTS_QUEUE_TIMEOUT` | `120` | 排队等待上限，单位秒，从入队成功开始计时 |
+| `MING_TTS_MLX_CACHE_LIMIT_MB` | `512` | MLX 缓存池上限，单位 MB，`0` 表示禁用缓存；启动脚本对应参数 `--mlx-cache-limit-mb` |
 | `MING_TTS_TEMP_DIR` | `<系统临时目录>/ming-tts` | 参考音频临时目录，启动时创建为 `0700` 并清空遗留文件 |
 | `MING_TTS_ALLOW_REMOTE` | 未设置 | 设为 `1` 才允许监听非回环地址；未设置时指定非回环 host 直接启动失败 |
 | `MING_TTS_LOG_LEVEL` | `INFO` | 日志级别，设为 `DEBUG` 记录耗时、任务模式、参数名等诊断信息；敏感数据在任何级别都不记录（BR-62） |
@@ -1373,7 +1376,7 @@ uvicorn 事件循环（单线程）
 | BR-45 | 所有错误响应统一为 `{"error": {"type": "...", "message": "..."}}`，含 413、404、405 和 FastAPI 默认 422 的映射 |
 | BR-46 | 错误类型和 HTTP 状态按附录 A-4 映射，不允许自定义未登记的类型 |
 | BR-47 | `/v1/models` 固定返回一个条目，`id` 为 `Ming-3.0-tts` |
-| BR-48 | `/health` 返回 `status`、`state`、`model_loaded`、`idle_seconds`、`idle_timeout_seconds`、`sample_rate`，失败时附带 `last_error`；`state` 取值见 BR-55 |
+| BR-48 | `/health` 返回 `status`、`state`、`model_loaded`、`idle_seconds`、`idle_timeout_seconds`、`sample_rate`、`memory`，失败时附带 `last_error`；`memory` 含 MLX 活跃/峰值/缓存、进程物理内存足迹（与活动监视器「内存」列一致，含 MLX 的 GPU 分配）和整机已用/总量，单位 MB；`state` 取值见 BR-55 |
 | BR-49 | `/health` 和 `/v1/models` 不得触发模型加载 |
 | BR-50 | `idle_timeout` 默认 1200 秒，`0` 表示常驻，负数启动即失败并给出配置错误 |
 | BR-51 | 空闲计时以最后一次合成完成时间为起点 |
@@ -1431,6 +1434,7 @@ uvicorn 事件循环（单线程）
 | BR-103 | 声音克隆不得叠加 `emotion`、方言或 `speed`/`pitch`/`volume`：官方实现依赖 CAM++ 说话人嵌入，mlx-audio 尚未移植；本服务保持 400 拒绝，`docs/api.md` 说明原因，不做静默降级 |
 | BR-104 | Web UI 文本输入处必须提供 14 个副语言标签的完整说明（标签 + 中文含义），默认折叠；说明中注明标签需原样写进台词、保持英文半角方括号和大小写、放在希望发声的位置 |
 | BR-105 | 单模型运行时 `/` 必须 307 重定向到 `/?page=tts`；带 `page` 参数进入时锁定对应页面并隐藏页签切换，未知取值按无参数处理；已带 `page` 参数时直接返回页面，不得再次重定向 |
+| BR-106 | 每次合成结束都调用 `mx.clear_cache()`，不等待队列空闲，避免持续有请求时缓存池无限累积；同时设置 MLX 缓存上限，默认 512 MB（`MING_TTS_MLX_CACHE_LIMIT_MB` 或 `--mlx-cache-limit-mb`，`0` 禁用缓存）。实测同长度长文本连续 6 次，仅清理时缓存从 1118MB 涨到 3756MB、进程占用 5469MB，清理后稳定在 1700MB 左右且单次耗时无明显变化 |
 
 ---
 

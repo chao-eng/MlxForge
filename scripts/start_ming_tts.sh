@@ -5,11 +5,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="$ROOT/envs/ming-tts/bin/python"
 HOST="127.0.0.1"
 PORT="8000"
+MLX_CACHE_LIMIT_MB=""
 
 usage() {
   cat <<'EOF'
-用法：./scripts/start_ming_tts.sh [--host 127.0.0.1] [--port 8000]
+用法：./scripts/start_ming_tts.sh [--host 127.0.0.1] [--port 8000] [--mlx-cache-limit-mb 512]
 
+--mlx-cache-limit-mb 限制 MLX 缓存池大小，默认 512，0 表示禁用缓存。
 默认只监听本机。服务没有鉴权，开放局域网必须同时设置 MING_TTS_ALLOW_REMOTE=1。
 EOF
 }
@@ -32,6 +34,14 @@ while [ "$#" -gt 0 ]; do
       PORT="${1#*=}"
       shift
       ;;
+    --mlx-cache-limit-mb)
+      MLX_CACHE_LIMIT_MB="${2:?--mlx-cache-limit-mb 需要参数}"
+      shift 2
+      ;;
+    --mlx-cache-limit-mb=*)
+      MLX_CACHE_LIMIT_MB="${1#*=}"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -47,6 +57,14 @@ done
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
   echo "端口不合法：$PORT" >&2
   exit 2
+fi
+
+if [ -n "$MLX_CACHE_LIMIT_MB" ]; then
+  if ! [[ "$MLX_CACHE_LIMIT_MB" =~ ^[0-9]+$ ]]; then
+    echo "缓存上限不合法：$MLX_CACHE_LIMIT_MB" >&2
+    exit 2
+  fi
+  export MING_TTS_MLX_CACHE_LIMIT_MB="$MLX_CACHE_LIMIT_MB"
 fi
 
 if [ ! -x "$PYTHON" ]; then

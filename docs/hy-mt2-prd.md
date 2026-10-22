@@ -363,6 +363,7 @@ Apple Silicon 的统一内存让 1.8B 级别的模型可以常驻在 Mac mini �
 | model_loaded | 权重是否在内存 | bool | 不触发加载，`loading` 期间仍为 false |
 | idle_seconds | 空闲秒数 | float | 距最后一次生成完成的时间 |
 | idle_timeout_seconds | 空闲阈值 | int | `0` 表示常驻 |
+| memory | 内存快照 | object | 单位 MB，含 `mlx_active_mb`、`mlx_peak_mb`、`mlx_cache_mb`、`footprint_mb`、`system_used_mb`、`system_total_mb` |
 | last_error | 最近错误类型 | string/null | 仅 `failed` 或 `degraded` 时出现，不含堆栈 |
 
 **接口说明**：`GET /v1/models`、`GET /health`。
@@ -581,6 +582,7 @@ uvicorn 事件循环（单线程）
 | 组件 | 行为 |
 | --- | --- |
 | 状态徽标 | 轮询 `/health`，按 `state` 展示已释放、加载中、已就绪、生成中、加载失败 |
+| 内存占用 | 状态徽标右侧显示程序总占用（进程物理内存足迹，与活动监视器一致）和 MLX 活跃内存，悬停展示程序总占用、MLX 峰值与缓存；数据取自 `/health` 的 `memory`，不单独发请求 |
 | 原文输入框 | 多行，自动增高，占位文案「输入要翻译的内容」 |
 | 目标语言下拉 | 默认中文，覆盖官方支持语言表，见附录 A-5 |
 | 翻译按钮 | 原文为空或请求中禁用，请求中显示「翻译中」 |
@@ -718,6 +720,7 @@ uvicorn 事件循环（单线程）
 | `HY_MT2_MODEL_PATH` | 仓库内 `models/hy-mt2/4bit` | 覆盖权重目录 |
 | `HY_MT2_IDLE_TIMEOUT` | `1200` | 覆盖空闲阈值，单位秒 |
 | `HY_MT2_MAX_QUEUE` | `8` | 等待队列上限，不含在途任务 |
+| `HY_MT2_MLX_CACHE_LIMIT_MB` | `512` | MLX 缓存池上限，单位 MB，`0` 表示禁用缓存；启动脚本对应参数 `--mlx-cache-limit-mb` |
 | `HY_MT2_LOG_LEVEL` | `INFO` | 日志级别，设为 `DEBUG` 才记录请求详情 |
 
 **A-3 模型文件**
@@ -792,7 +795,7 @@ uvicorn 事件循环（单线程）
 | BR-24 | v1 的流式是整段生成后分块下发，不是逐 token 生成，文档必须如实说明 |
 | BR-25 | 流式结束必须下发 `finish_reason=stop` 或 `length` 的空 delta，以及 `data: [DONE]` |
 | BR-26 | `/v1/models` 固定返回一个条目，`id` 为 `Hy-MT2` |
-| BR-27 | `/health` 返回 `status`、`state`、`model_loaded`、`idle_seconds`、`idle_timeout_seconds`，失败时附带 `last_error`；`state` 取值为 `unloaded`、`loading`、`ready`、`generating`、`unloading`、`failed`；不暴露绝对路径 |
+| BR-27 | `/health` 返回 `status`、`state`、`model_loaded`、`idle_seconds`、`idle_timeout_seconds`、`memory`，失败时附带 `last_error`；`memory` 含 MLX 活跃/峰值/缓存、进程物理内存足迹（与活动监视器「内存」列一致，含 MLX 的 GPU 分配）和整机已用/总量，单位 MB；`state` 取值为 `unloaded`、`loading`、`ready`、`generating`、`unloading`、`failed`；不暴露绝对路径 |
 | BR-28 | `/health` 和 `/v1/models` 不得触发模型加载 |
 | BR-29 | 模型在第一次生成请求时加载，加载过程对同一请求可见 |
 | BR-30 | `idle_timeout` 默认 1200 秒，`0` 表示常驻，负数启动即失败并给出配置错误 |
@@ -824,6 +827,7 @@ uvicorn 事件循环（单线程）
 | BR-56 | 安装后保留 `LICENSE.txt`，README 注明模型许可证和来源，权重不进入 git |
 | BR-57 | 已存在权重的 `.revision` 与锁定 revision 不一致时，安装脚本重新下载，不静默复用 |
 | BR-58 | 单模型运行时 `/` 必须 307 重定向到 `/?page=translate`；带 `page` 参数进入时锁定对应页面并隐藏页签切换，未知取值按无参数处理；已带 `page` 参数时直接返回页面，不得再次重定向 |
+| BR-59 | 启动时必须设置 MLX 缓存上限，默认 512 MB，避免缓存池随请求累积；上限由 `HY_MT2_MLX_CACHE_LIMIT_MB` 或启动脚本 `--mlx-cache-limit-mb` 调整，`0` 表示禁用缓存，超限缓冲在下次分配前归还系统 |
 
 ---
 
