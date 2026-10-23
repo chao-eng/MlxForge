@@ -50,6 +50,10 @@ def synthesize(
     if samples.size == 0:
         raise SynthesisError("合成结果为空")
 
+    # 模型偶尔在语音结束后多吐几个 latent，解码成持续的低电平噪声（电流声），
+    # 这里统一裁掉，避免把尾噪返回给调用方
+    samples = audio.trim_trailing_noise(samples)
+
     pcm = audio.encode_pcm(samples)
     return SynthesisResult(pcm=pcm, duration=audio.duration_seconds(pcm))
 

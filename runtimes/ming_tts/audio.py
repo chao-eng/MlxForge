@@ -138,6 +138,52 @@ def _inspect_flac(data: bytes) -> ReferenceInfo:
     )
 
 
+TRIM_FRAME_SECONDS = 0.03
+TRIM_HOP_SECONDS = 0.01
+TRIM_RELATIVE_THRESHOLD = 0.04
+TRIM_MIN_THRESHOLD = 0.004
+TRIM_TAIL_SECONDS = 0.2
+TRIM_FADE_SECONDS = 0.02
+
+
+def trim_trailing_noise(
+    samples: np.ndarray, sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """裁掉尾部的低电平噪声，保留一段自然收尾。
+
+    stop head 偶尔晚于语音内容结束才触发，多出来的 latent 会被声码器还原成
+    持续的低电平噪声，听感像「电流声」。mlx-audio 自带的尾静音裁剪用 1e-3
+    绝对门限，挡不住 2e-3 量级的噪声，所以在运行时按相对门限再裁一次。
+    """
+    x = np.asarray(samples, dtype=np.float32).reshape(-1)
+    frame = max(1, int(sample_rate * TRIM_FRAME_SECONDS))
+    hop = max(1, int(sample_rate * TRIM_HOP_SECONDS))
+    keep = int(sample_rate * TRIM_TAIL_SECONDS)
+    fade = min(int(sample_rate * TRIM_FADE_SECONDS), x.size)
+    if x.size < frame + hop:
+        return x
+
+    windows = np.lib.stride_tricks.sliding_window_view(x, frame)[::hop]
+    energy = np.abs(windows).mean(axis=1)
+    # 用 99 分位而不是最大值，避免单个爆点把门限抬高
+    threshold = max(
+        float(np.percentile(energy, 99)) * TRIM_RELATIVE_THRESHOLD,
+        TRIM_MIN_THRESHOLD,
+    )
+    loud = np.nonzero(energy > threshold)[0]
+    if loud.size == 0:
+        # 整段都没有明显有声段，不做裁剪，交给上层报错或原样输出
+        return x
+
+    end = int(loud[-1]) * hop + frame + keep
+    if end >= x.size:
+        return x
+    trimmed = x[:end].copy()
+    ramp = np.linspace(1.0, 0.0, fade, dtype=np.float32)
+    trimmed[-fade:] *= ramp
+    return trimmed
+
+
 def encode_pcm(samples: np.ndarray) -> bytes:
     """把 [-1, 1] 的浮点波形转成 16-bit 小端单声道 PCM。"""
     clipped = np.clip(np.asarray(samples, dtype=np.float32).reshape(-1), -1.0, 1.0)
