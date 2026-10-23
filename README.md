@@ -203,7 +203,7 @@ runtimes/birefnet/.build/release/birefnet-server \
   --host 127.0.0.1 --port 8000 --weights models/birefnet/fp16 --web-root web/dist
 ```
 
-`web/dist` 不存在时接口照常工作，只是静态页面返回 404。模型内部默认按 512² 推理，峰值内存约 1.9GB；需要更细的边缘时用 `BIREFNET_INPUT_SIZE=1024` 启动，代价是峰值涨到约 4.9GB。`BIREFNET_IDLE_TIMEOUT` 控制空闲卸载，默认 1200 秒，`0` 表示常驻；MLX 缓存上限固定 256MB，超出的缓冲区直接还给系统。非回环监听必须显式授权，否则启动失败：
+`web/dist` 不存在时接口照常工作，只是静态页面返回 404。模型内部默认按 1024² 推理，峰值 footprint 约 5GB（推理瞬时，请求结束回落到约 750MB）；内存紧张时用 `BIREFNET_INPUT_SIZE=768` 或 `512` 换速度和内存，代价是低对比人像的脸部和发际会留下半透明残留。`BIREFNET_IDLE_TIMEOUT` 控制空闲卸载，默认 1200 秒，`0` 表示常驻；MLX 缓存上限固定 256MB，超出的缓冲区直接还给系统。非回环监听必须显式授权，否则启动失败：
 
 ```bash
 BIREFNET_ALLOW_REMOTE=1 runtimes/birefnet/.build/release/birefnet-server --host 0.0.0.0
@@ -220,7 +220,7 @@ BIREFNET_ALLOW_REMOTE=1 runtimes/birefnet/.build/release/birefnet-server --host 
 | 机型 | 系统 | 记录 |
 | --- | --- | --- |
 | Apple M2，16GB 统一内存 | macOS 15.7.9 | Ming-3.0-tts 的加载、RTF、内存与并发数据见 [docs/benchmarks.md](docs/benchmarks.md) |
-| Apple M2，16GB 统一内存 | macOS 15.7.9 | BiRefNet fp16：1279×1704 人像在 512² 档端到端 0.76~0.95 秒，MLX 峰值约 1.9GB，请求后进程 footprint 约 750MB；1024² 档约 2.4 秒、峰值 4.9GB（同一张图，热态） |
+| Apple M2，16GB 统一内存 | macOS 15.7.9 | BiRefNet fp16：1920×2889 人像在 1024² 档端到端 2.5~2.9 秒、峰值 footprint 约 5GB；512² 档 1.4~1.5 秒、约 1.8GB，但同一张低对比人像的脸部和发际会留半透明残留。输出后进程 footprint 回落至约 750MB |
 
 其他 Apple Silicon 机型只保证功能可运行，不承诺具体耗时。PRD 里的性能门槛以 M4 Pro 24GB 为基准机，本仓库尚未在该机型实测。
 

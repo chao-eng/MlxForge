@@ -129,7 +129,7 @@ GET  /health
 - Swift 公开类型和函数带类型标注，依赖走 SwiftPM
 - 配置用 TOML，不用 YAML
 - 日志走标准库 `logging`，不 print；Swift 侧用 `os.Logger`
-- BiRefNet 默认按 512² 推理（`BIREFNET_INPUT_SIZE` 可调到 1024），MLX 缓存上限固定 256MB；改默认值要同时更新 README 的实测表
+- BiRefNet 默认按 1024² 推理（`BIREFNET_INPUT_SIZE` 可降到 768/512 省内存，但 512 在低对比人像上会留半透明残留），MLX 缓存上限固定 256MB；改默认值要同时更新 README 的实测表
 - 注释用中文，解释为什么这么做，不复述代码
 - 新增依赖前先确认 MLX 或标准库能不能解决
 

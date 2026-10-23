@@ -49,7 +49,7 @@
 | R6 | 空闲时释放内存 | 首次请求加载，空闲超时后卸载并清缓存 | UC-06 |
 | R7 | 部署和排障要简单 | 一条安装脚本、一个健康检查、清晰的错误提示和日志 | UC-01、UC-03、UC-08 |
 | R8 | 不编数据 | 上游数字只作参考，本项目性能必须实测后记录 | §6.1、BR-45 |
-| R9 | 单模型推进 | 本期只做 BiRefNet fast 档，内部推理默认 512²（`BIREFNET_INPUT_SIZE` 可调），不接 HR、Lucida 或其他模型 | §1.4 |
+| R9 | 单模型推进 | 本期只做 BiRefNet fast 档，内部推理默认 1024²（`BIREFNET_INPUT_SIZE` 可调），不接 HR、Lucida 或其他模型 | §1.4 |
 | R10 | 不破坏现有运行时 | Hy-MT2、Ming-3.0-tts 的接口、页面和依赖不受影响 | §1.6、BR-37 |
 
 ---
@@ -70,7 +70,7 @@ BiRefNet 是第三个候选模型，任务是把图片主体从背景中分离�
 | --- | --- | --- |
 | 任务 | 前景分割 / 抠图，输出单通道软 alpha | 模型卡 |
 | 骨干 | Swin-L + ASPP-Deformable | 模型卡、Swift 端口 |
-| 输入尺寸 | 默认 512×512，`BIREFNET_INPUT_SIZE` 可在 256~2048 间调整（32 的倍数） | 本机实测：1024² 峰值 4.9GB、768² 3.0GB、512² 1.8GB |
+| 输入尺寸 | 默认 1024×1024，`BIREFNET_INPUT_SIZE` 可在 256~2048 间调整（32 的倍数） | 本机实测：1024² 峰值约 5GB、768² 约 3.4GB、512² 约 1.8GB；512² 在低对比人像上会把脸部和发际留成大块半透明，故不作默认 |
 | 输出 | 单通道软 alpha，白=前景；可回到源分辨率 | 模型卡、Swift 端口 |
 | 权重文件 | 单文件 `model.safetensors`，440,483,842 字节（约 420 MiB） | ModelScope 文件元数据 |
 | 权重 revision | `b9f39904c60ed2bc11c2fd5bdb005872a8eb2d34` | ModelScope |
@@ -588,10 +588,10 @@ ImageIO 解码
 PixelGuard：最长边、总像素
   │
   ▼
-BiRefNet 预处理：缩放到 512×512（`BIREFNET_INPUT_SIZE` 可调）
+BiRefNet 预处理：缩放到 1024×1024（`BIREFNET_INPUT_SIZE` 可调）
   │
   ▼
-BiRefNet 推理：输出 512×512 sigmoid alpha
+BiRefNet 推理：输出 1024×1024 sigmoid alpha
   │
   ├─ 重采样回源分辨率
   ▼
@@ -633,7 +633,7 @@ Unloaded ──首次请求──► Loading ──成功──► Ready ──�
   │────────────────────────►│ 校验、解码、入队         │                         │
   │                         │────────────────────────►│ 加载（首次）             │
   │                         │                         │────────────────────────►│
-  │                         │                         │ 推理 512²               │
+  │                         │                         │ 推理 1024²              │
   │                         │                         │◄────────────────────────│
   │                         │                         │ 重采样、合成、PNG 编码   │
   │                         │◄────────────────────────│ PNG                     │
@@ -1052,7 +1052,7 @@ min_macos = "14"
 | BR-17 | `cutout` 返回 RGBA PNG，alpha 为直通非预乘，RGB 保留源图颜色；`mask` 返回 8-bit 灰度 PNG，255 表示前景。 |
 | BR-18 | v1 只返回 PNG；不支持 JPEG、WebP、AVIF 等输出格式。 |
 | BR-19 | 成功响应必须带 `X-Request-Id`、`X-Output-Mode`、`X-Image-Width`、`X-Image-Height`、`X-Elapsed-Ms`、`Content-Disposition` 和 `Cache-Control: no-store`。 |
-| BR-20 | 模型内部默认按 512×512 推理，可用 `BIREFNET_INPUT_SIZE` 调整（默认档位的取舍见 §1.2）；输出必须回到方向归一化后的源分辨率，不得静默裁剪或缩小。 |
+| BR-20 | 模型内部默认按 1024×1024 推理，可用 `BIREFNET_INPUT_SIZE` 调整（默认档位的取舍见 §1.2）；输出必须回到方向归一化后的源分辨率，不得静默裁剪或缩小。 |
 | BR-21 | v1 只输出上游原始 sigmoid alpha；不做颜色去污染、边缘细化、羽化或背景替换，文档不得承诺这些效果。 |
 | BR-22 | `GET /v1/models` 返回固定 id `BiRefNet-fp16`，不触发模型加载；`created` 为进程启动时间。 |
 | BR-23 | `/health` 的 `state` 只允许 `unloaded`、`loading`、`ready`、`generating`、`unloading`、`failed`；不得暴露本地路径；加载失败带 `last_error`。 |

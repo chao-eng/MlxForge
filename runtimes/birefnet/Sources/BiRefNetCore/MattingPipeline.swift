@@ -20,17 +20,18 @@ public final class MattingPipeline {
         self.inputSize = inputSize ?? Self.inputSizeFromEnvironment()
     }
 
-    /// 模型内部推理边长，默认 512。峰值内存随边长平方增长（1024² 约 4.9GB、
-    /// 768² 约 3.0GB、512² 约 1.8GB），默认取 512 换内存，需要细节时
-    /// 用 BIREFNET_INPUT_SIZE=1024 覆盖；输出始终回到源分辨率
+    /// 模型内部推理边长，默认 1024。峰值 footprint 随边长明显增长（1024² 约 5GB、
+    /// 768² 约 3.4GB、512² 约 1.8GB），但 512² 在低对比人像上会把脸部和发际
+    /// 留成大块半透明，实测不可接受，所以默认取 1024；内存紧张时用
+    /// BIREFNET_INPUT_SIZE=768 或 512 覆盖，输出始终回到源分辨率
     private static func inputSizeFromEnvironment() -> Int {
         guard let raw = ProcessInfo.processInfo.environment["BIREFNET_INPUT_SIZE"],
               let value = Int(raw)
-        else { return 512 }
+        else { return 1024 }
         // Swin 的 patch 是 4、窗口是 7，取 32 的倍数最稳
         guard value >= 256, value <= 2048, value % 32 == 0 else {
-            logger.warning("BIREFNET_INPUT_SIZE=\(raw, privacy: .public) 不合法，回退 512")
-            return 512
+            logger.warning("BIREFNET_INPUT_SIZE=\(raw, privacy: .public) 不合法，回退 1024")
+            return 1024
         }
         return value
     }
