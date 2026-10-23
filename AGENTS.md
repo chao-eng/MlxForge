@@ -4,11 +4,11 @@
 
 ## 项目现状
 
-仓库里现在有 Hy-MT2 运行时（`runtimes/hy_mt2/`）和单页 Web UI（`web/`），`server/` 还没开始。两个运行时都是 Python，Swift 运行时只有下面这套约定，还没有模型接入。`models/` 和 `envs/` 不入库。
+仓库里现在有 Hy-MT2（`runtimes/hy_mt2/`）、Ming-3.0-tts（`runtimes/ming_tts/`）和 BiRefNet（`runtimes/birefnet/`）三个运行时，外加单页 Web UI（`web/`），`server/` 还没开始。前两个是 Python，BiRefNet 是第一个 Swift 运行时，CLI 和 `/v1/images/matting` 已跑通，`runtime.toml` 和安装脚本还没补。`models/` 和 `envs/` 不入库。
 
 ## 目标
 
-在 Apple Silicon 上提供一套原生 MLX 运行时。范围先收窄，先接 Hy-MT2 翻译和 Ming-3.0-tts 语音合成，其余模型后面再说。每个模型独立依赖环境，对外共用 HTTP API 和 Web UI。上游只提供 Swift 版 MLX 实现的模型，作为独立 Swift 运行时接入，不硬塞进 Python。
+在 Apple Silicon 上提供一套原生 MLX 运行时。范围先收窄，先接 Hy-MT2 翻译、Ming-3.0-tts 语音合成和 BiRefNet 抠图，其余模型后面再说。每个模型独立依赖环境，对外共用 HTTP API 和 Web UI。上游只提供 Swift 版 MLX 实现的模型，作为独立 Swift 运行时接入，不硬塞进 Python。
 
 ## 硬性约束
 
@@ -33,7 +33,7 @@ MlxForge/
 ├── runtimes/
 │   ├── hy_mt2/
 │   ├── ming_tts/
-│   └── <swift 模型>/       # SwiftPM 工程：Package.swift + Sources/
+│   └── birefnet/          # SwiftPM 工程：Package.swift + Sources/
 ├── server/                # 统一 API、模型调度
 ├── web/                   # Web UI
 ├── scripts/               # 建环境、转权重、压测
@@ -80,6 +80,10 @@ idle_timeout = 1200
 min_macos = "14"
 ```
 
+BiRefNet 的实际构建命令包在 `scripts/build_birefnet.sh` 里（`swift build -c release` 两个 product + `scripts/build_metallib.sh` + 产物软链），清单的 `build` 直接调这个脚本，不要再把命令拆散写进清单。
+
+上游包可能已经声明了同名 target 和 product，比如 `mlx-swift-BiRefNet` 就占用了 `birefnet-cli`。本包的 target 用独立名字（`MatteCLI` / `MatteServer`），产物名也带前缀（`birefnet-matte-cli` / `birefnet-matte-server`），再由构建脚本软链成清单里约定的名字；软链前先确认 `.build/release/` 下不是上游产物。
+
 | 字段 | 用途 |
 | --- | --- |
 | `name` | 模型标识，与 `runtimes/` 下的目录名一致 |
@@ -108,6 +112,7 @@ min_macos = "14"
 GET  /v1/models
 POST /v1/chat/completions
 POST /v1/audio/speech
+POST /v1/images/matting
 GET  /health
 ```
 
@@ -124,6 +129,7 @@ GET  /health
 - Swift 公开类型和函数带类型标注，依赖走 SwiftPM
 - 配置用 TOML，不用 YAML
 - 日志走标准库 `logging`，不 print；Swift 侧用 `os.Logger`
+- BiRefNet 默认按 512² 推理（`BIREFNET_INPUT_SIZE` 可调到 1024），MLX 缓存上限固定 256MB；改默认值要同时更新 README 的实测表
 - 注释用中文，解释为什么这么做，不复述代码
 - 新增依赖前先确认 MLX 或标准库能不能解决
 
@@ -132,13 +138,17 @@ GET  /health
 - 所有性能结论必须在 Apple Silicon 上实测，记录芯片型号、内存大小和量化精度
 - 改运行时时先跑通命令行入口，再接 API
 - API 冒烟测试至少覆盖 `/health`、`/v1/models` 和一次 `chat.completions`，空闲释放可以把 `HY_MT2_IDLE_TIMEOUT` 调小后等一轮检查
-- Swift 运行时按同样三项冒烟测试验收，首次运行先 `swift build -c release` 并用 `scripts/build_metallib.sh` 生成 `mlx.metallib`，再启动清单里的可执行文件
+- Swift 运行时按同样三项冒烟测试验收，首次运行先跑 `scripts/build_birefnet.sh`（内部 `swift build -c release` + `scripts/build_metallib.sh`），再启动清单里的可执行文件
+- BiRefNet 的冒烟顺序：`birefnet-cli` 用一张真实图片分别输出 `cutout` 和 `mask`，再启动 `birefnet-server` 验证 `GET /health`、`GET /v1/models`、`POST /v1/images/matting`，最后把 `BIREFNET_IDLE_TIMEOUT` 调到 20 秒确认卸载后 `mlx_active/cache` 归零
+- 排查 BiRefNet 时先看 `/usr/bin/log stream --level debug --predicate 'subsystem == "com.mlxforge.birefnet"'`，每次请求按 `X-Request-Id` 串起排队、解码、推理、编码和 `mlx_active/peak/cache`，不要靠猜内存和耗时
 - 验证三件事：冷启动耗时、空闲释放后内存是否归零、SSE 输出格式是否还能被 CalmBar 接受
 - README 的状态表只在功能跑通后更新
 
 ## 不要做
 
 - 不要在空目录里补假实现
-- 不要把模型权重、日志、生成的音频提交进仓库
+- 不要把模型权重、日志、生成的音频和图片提交进仓库
 - 不要把 Swift 运行时的 `.build/`、`.swiftpm/` 和 Xcode 工程文件提交进仓库
+- 不要直接用上游同名 target 产出的可执行文件，先确认它来自本包
+- 不要调大推理边长后只报耗时、不报内存峰值；两者一起记录
 - 不要为尚未存在的需求加抽象层
