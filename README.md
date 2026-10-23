@@ -220,7 +220,7 @@ BIREFNET_ALLOW_REMOTE=1 runtimes/birefnet/.build/release/birefnet-server --host 
 | 机型 | 系统 | 记录 |
 | --- | --- | --- |
 | Apple M2，16GB 统一内存 | macOS 15.7.9 | Ming-3.0-tts 的加载、RTF、内存与并发数据见 [docs/benchmarks.md](docs/benchmarks.md) |
-| Apple M2，16GB 统一内存 | macOS 15.7.9 | BiRefNet fp16：1920×2889 人像在 1024² 档端到端 2.5~2.9 秒、峰值 footprint 约 5GB；512² 档 1.4~1.5 秒、约 1.8GB，但同一张低对比人像的脸部和发际会留半透明残留。输出后进程 footprint 回落至约 750MB |
+| Apple M2，16GB 统一内存 | macOS 15.7.9 | BiRefNet fp16：1920×2889 人像在 1024² 档端到端 2.5-2.9 秒、峰值 footprint 约 5GB；512² 档 1.4-1.5 秒、约 1.8GB，但同一张低对比人像的脸部和发际会留半透明残留。输出后进程 footprint 回落至约 750MB |
 
 其他 Apple Silicon 机型只保证功能可运行，不承诺具体耗时。PRD 里的性能门槛以 M4 Pro 24GB 为基准机，本仓库尚未在该机型实测。
 
