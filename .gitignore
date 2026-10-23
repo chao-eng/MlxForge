@@ -8,3 +8,5 @@ logs/
 run/
 .venv/
 output/
+.build/
+.swiftpm/

@@ -2,7 +2,7 @@
 
 在 Apple Silicon 上原生运行 MLX 模型。先接机器翻译和语音合成，再用同样的方式接更多模型。
 
-不用 Docker，只跑 macOS 原生环境。每个模型有自己的 Python 环境，对外共用一套 HTTP API 和一个 Web UI。
+不用 Docker，只跑 macOS 原生环境。每个模型有独立的运行环境：Python 模型用独立 venv，上游只提供 Swift 实现的模型用 SwiftPM 工程。对外共用一套 HTTP API 和一个 Web UI。
 
 > 项目刚起步，目前有 Hy-MT2 翻译和 Ming-3.0-tts 语音合成两个运行时，各自独立环境、独立进程，Web UI 同时保留两套模型页面；统一调度器还没开始。
 
@@ -26,9 +26,11 @@ Ming-3.0-tts 来自蚂蚁百灵 2026 年 10 月的语音系列。除了常规的
 
 项目只覆盖端侧尺寸：Hy-MT2 的 1.8B，以及 Ming-3.0-tts 的 0.5B（当前实测 8-bit 版本）。更大的版本不在本期范围内。
 
+有些模型上游只提供 Swift 版 MLX 实现，没有对应的 Python 包。这类模型不硬塞进 Python，按 Swift 运行时接入：用 SwiftPM 构建成独立可执行服务，提供同一套 `/v1` 接口，Web UI 和客户端不用区分后端是哪种语言。当前还没有接入这类模型。
+
 ## 为什么不用 Docker
 
-macOS 上的容器跑在 Linux 虚拟机里，拿不到 Metal，MLX 用不上。项目直接跑在系统上，依赖隔离交给独立 venv。
+macOS 上的容器跑在 Linux 虚拟机里，拿不到 Metal，MLX 用不上。项目直接跑在系统上，依赖隔离交给每个模型自己的独立环境。
 
 同一个环境里装两个模型，依赖版本经常对不上，音频编解码和推理框架是重灾区。一个模型一套环境，装坏了删目录重来，不牵连另一个。
 
@@ -41,12 +43,13 @@ macOS 上的容器跑在 Linux 虚拟机里，拿不到 Metal，MLX 用不上。
         │
    模型调度器
    ├── Hy-MT2 运行时（独立 venv）
-   └── Ming-3.0-tts 运行时（独立 venv）
+   ├── Ming-3.0-tts 运行时（独立 venv）
+   └── Swift 运行时（独立可执行文件，按需接入）
         │
   models/ 权重与 MLX 转换产物
 ```
 
-调度器按需加载模型。首次请求时把权重读进内存，默认 20 分钟没有请求就卸载，同时清掉 Metal 缓存。每个运行时的依赖、权重路径和启动命令写在清单里，接新模型时不用改调度器。
+调度器按需加载模型。首次请求时把权重读进内存，默认 20 分钟没有请求就卸载，同时清掉 Metal 缓存。每个运行时的依赖、权重路径和启动命令写在清单里，清单用 `runtime` 区分 Python 和 Swift，调度器只按清单拉起，不认识具体模型，接新模型时不用改调度器。
 
 ## 接口
 
@@ -67,7 +70,8 @@ GET  /health
 - macOS 14 或更新
 - Python 3.11 及以上
 - `uv`
-- 磁盘空间按模型算：Hy-MT2-1.8B-4bit 权重约 1 GB，Ming-3.0-tts-0.5B-8bit 权重约 1.57 GB，另需留出各自独立环境的依赖空间
+- Swift 工具链（仅 Swift 运行时需要），装好 Xcode Command Line Tools 即可：`xcode-select --install`
+- 磁盘空间按模型算：Hy-MT2-1.8B-4bit 权重约 1 GB，Ming-3.0-tts-0.5B-8bit 权重约 1.57 GB，另需留出各自独立环境的依赖空间；Swift 运行时的构建产物在 `runtimes/<name>/.build/`，占用另算
 
 `uv` 用官方脚本安装，脚本会自动识别芯片架构（Apple Silicon 或 Intel），把 `uv` 和 `uvx` 装到 `~/.local/bin`：
 
@@ -190,6 +194,7 @@ cd web && pnpm dev
 | 0.2 | Hy-MT2 运行时，命令行、OpenAI 兼容接口和单页 Web UI | 完成 |
 | 0.3 | 统一调度器接管多模型加载与端口 | 计划 |
 | 0.4 | Ming-3.0-tts 命令行推理跑通，输出 wav | 完成 |
+| 0.5 | Swift 运行时接入，上游仅有 Swift 实现的模型作为独立进程 | 计划 |
 
 ## 参与
 
