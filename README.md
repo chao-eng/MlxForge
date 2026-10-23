@@ -67,10 +67,10 @@ GET  /health
 ## 环境要求
 
 - Apple Silicon Mac，M1 及以上
-- macOS 14 或更新
+- macOS 14 或更新（Swift 运行时构建需要 15.6 或更新）
 - Python 3.11 及以上
 - `uv`
-- Swift 工具链（仅 Swift 运行时需要），装好 Xcode Command Line Tools 即可：`xcode-select --install`
+- Swift 工具链（仅 Swift 运行时需要）：Xcode 26.2（含 Swift 6.2.3），要求 macOS Sequoia 15.6 或更新。装好后执行 `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`，构建统一用 `swift build -c release`，再执行 `scripts/build_metallib.sh` 生成 MLX 需要的 `mlx.metallib`。Xcode 26.2 的 `--build-system swiftbuild` 实测无法调起 Metal 编译器，不采用
 - 磁盘空间按模型算：Hy-MT2-1.8B-4bit 权重约 1 GB，Ming-3.0-tts-0.5B-8bit 权重约 1.57 GB，另需留出各自独立环境的依赖空间；Swift 运行时的构建产物在 `runtimes/<name>/.build/`，占用另算
 
 `uv` 用官方脚本安装，脚本会自动识别芯片架构（Apple Silicon 或 Intel），把 `uv` 和 `uvx` 装到 `~/.local/bin`：

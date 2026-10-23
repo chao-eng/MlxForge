@@ -73,10 +73,11 @@ Swift 运行时的清单把 `runtime` 写成 `swift`，用 `build` 描述构建�
 ```toml
 name = "<model>"
 runtime = "swift"
-build = "swift build -c release"
+build = "swift build -c release && scripts/build_metallib.sh"
 entry = "runtimes/<model>/.build/release/<target>"
 weights = "models/<model>/<quant>"
 idle_timeout = 1200
+min_macos = "14"
 ```
 
 | 字段 | 用途 |
@@ -88,6 +89,7 @@ idle_timeout = 1200
 | `entry` | 启动入口：Python 是导入路径，Swift 是可执行文件路径 |
 | `weights` | 权重目录，相对仓库根目录 |
 | `idle_timeout` | 空闲多少秒后释放，0 表示常驻 |
+| `min_macos` | 运行期最低 macOS 版本，字符串；只约束运行期，不约束构建机的工具链版本 |
 
 ## 调度器职责
 
@@ -130,7 +132,7 @@ GET  /health
 - 所有性能结论必须在 Apple Silicon 上实测，记录芯片型号、内存大小和量化精度
 - 改运行时时先跑通命令行入口，再接 API
 - API 冒烟测试至少覆盖 `/health`、`/v1/models` 和一次 `chat.completions`，空闲释放可以把 `HY_MT2_IDLE_TIMEOUT` 调小后等一轮检查
-- Swift 运行时按同样三项冒烟测试验收，首次运行先 `swift build -c release`，再启动清单里的可执行文件
+- Swift 运行时按同样三项冒烟测试验收，首次运行先 `swift build -c release` 并用 `scripts/build_metallib.sh` 生成 `mlx.metallib`，再启动清单里的可执行文件
 - 验证三件事：冷启动耗时、空闲释放后内存是否归零、SSE 输出格式是否还能被 CalmBar 接受
 - README 的状态表只在功能跑通后更新
 
